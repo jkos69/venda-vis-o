@@ -45,12 +45,12 @@ export async function saveUploadToSupabase(
   data: RawDataRow[],
   meta: UploadMeta
 ): Promise<{ error: string | null }> {
-  const { error } = await supabase.from('uploads').insert({
+  const { error } = await supabase.from('uploads').insert([{
     filename: meta.fileName,
     row_count: meta.rowCount,
     sheet_name: meta.sheetName,
     data: data as unknown as Record<string, unknown>[],
-  });
+  }] as any);
 
   return { error: error ? error.message : null };
 }
