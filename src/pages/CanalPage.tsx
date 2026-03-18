@@ -2,6 +2,7 @@ import { useStore, useFilteredData } from '@/store/useStore';
 import { aggregate, filterByBase, deltaPercent, groupBy, getMesesComDadosReais, filtrarPelosMesesDoReal } from '@/lib/aggregations';
 import { formatCurrency, formatPct, getDeltaColorClass } from '@/lib/format';
 import { GlobalFilters } from '@/components/GlobalFilters';
+import { ChartTooltip } from '@/components/ChartTooltip';
 import { Upload } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, Legend } from 'recharts';
