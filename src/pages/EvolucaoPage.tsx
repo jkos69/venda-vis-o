@@ -2,6 +2,7 @@ import { useStore, useFilteredData } from '@/store/useStore';
 import { aggregate, filterByBase, groupBy } from '@/lib/aggregations';
 import { formatCurrency } from '@/lib/format';
 import { GlobalFilters } from '@/components/GlobalFilters';
+import { ChartTooltip } from '@/components/ChartTooltip';
 import { Upload } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
@@ -87,10 +88,13 @@ export default function EvolucaoPage() {
               fontSize={10}
             />
             <Tooltip
-              formatter={(v: number) => indicator === 'quantidade' ? v.toLocaleString('pt-BR') : formatCurrency(v)}
-              contentStyle={{ backgroundColor: 'hsl(222,24%,7%)', border: '1px solid hsl(217,19%,14%)', borderRadius: 8, fontSize: 12 }}
-              labelStyle={{ color: 'hsl(210,40%,98%)' }}
-              itemStyle={{ color: 'hsl(210,40%,98%)' }}
+              content={
+                <ChartTooltip
+                  valueFormatter={(v) =>
+                    indicator === 'quantidade' ? v.toLocaleString('pt-BR') : formatCurrency(v)
+                  }
+                />
+              }
             />
             <Legend wrapperStyle={{ fontSize: 11, paddingTop: 10 }} />
             <Line

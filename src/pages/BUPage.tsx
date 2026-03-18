@@ -2,6 +2,7 @@ import { useStore, useFilteredData } from '@/store/useStore';
 import { aggregate, filterByBase, deltaPercent, groupByNormalized, groupBy, getMesesComDadosReais, filtrarPelosMesesDoReal } from '@/lib/aggregations';
 import { formatCurrency, formatPct, getDeltaColorClass, formatQty } from '@/lib/format';
 import { GlobalFilters } from '@/components/GlobalFilters';
+import { ChartTooltip } from '@/components/ChartTooltip';
 import { Upload } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
@@ -76,7 +77,7 @@ export default function BUPage() {
           <BarChart data={chartData} layout="vertical" margin={{ left: 120, right: 20, top: 5, bottom: 5 }}>
             <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} stroke="hsl(215,15%,65%)" fontSize={10} />
             <YAxis type="category" dataKey="name" stroke="hsl(215,15%,65%)" fontSize={10} width={110} />
-            <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={{ backgroundColor: 'hsl(222,24%,7%)', border: '1px solid hsl(217,19%,14%)', borderRadius: 8, fontSize: 12 }} labelStyle={{ color: 'hsl(210,40%,98%)' }} itemStyle={{ color: 'hsl(210,40%,98%)' }} />
+            <Tooltip content={<ChartTooltip />} />
             <Bar dataKey="value" radius={[0, 4, 4, 0]}>
               {chartData.map((entry, i) => (
                 <Cell key={i} fill={entry.delta != null && entry.delta >= 0 ? 'hsl(165,100%,39%)' : 'hsl(0,100%,63%)'} fillOpacity={0.8} />
