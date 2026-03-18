@@ -39,6 +39,10 @@ export function formatQty(value: number): string {
   return qtyFmt.format(value);
 }
 
+export function formatPctDirect(value: number): string {
+  return `${pctFmt.format(value * 100)}%`;
+}
+
 export function formatDeltaCurrency(value: number): string {
   if (value < 0) {
     return `(R$ ${currencyFmt.format(Math.abs(value))})`;

@@ -52,6 +52,10 @@ export function receitaLiquida(m: AggregatedMetrics): number {
   return m.receitaBrutaOperacional - Math.abs(m.devolucao) - Math.abs(m.impostosSemST) - Math.abs(m.icms) - Math.abs(m.icmsST);
 }
 
+export function receitaLiquidaProdutos(m: AggregatedMetrics): number {
+  return m.receitaBrutaProdutos - Math.abs(m.devolucao) - Math.abs(m.impostosSemST) - Math.abs(m.icms) - Math.abs(m.icmsST);
+}
+
 export function totalImpostos(m: AggregatedMetrics): number {
   return Math.abs(m.impostosSemST) + Math.abs(m.icms) + Math.abs(m.icmsST);
 }
