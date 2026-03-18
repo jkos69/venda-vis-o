@@ -1,6 +1,6 @@
 import { useStore, useFilteredData } from '@/store/useStore';
 import { formatCurrency, formatPct, formatQty, getDeltaColorClass, formatDeltaCurrency } from '@/lib/format';
-import { aggregate, receitaLiquida, totalImpostos, deltaPercent, filterByBase } from '@/lib/aggregations';
+import { aggregate, receitaLiquida, receitaLiquidaProdutos, totalImpostos, deltaPercent, filterByBase } from '@/lib/aggregations';
 import { GlobalFilters } from '@/components/GlobalFilters';
 import { KPICard } from '@/components/KPICard';
 import { useNavigate } from 'react-router-dom';
