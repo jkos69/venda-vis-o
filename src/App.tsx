@@ -3,8 +3,16 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import Index from "./pages/Index.tsx";
-import NotFound from "./pages/NotFound.tsx";
+import { AppLayout } from "@/components/AppLayout";
+import DashboardPage from "./pages/DashboardPage";
+import BUPage from "./pages/BUPage";
+import CanalPage from "./pages/CanalPage";
+import ClientePage from "./pages/ClientePage";
+import ProdutoPage from "./pages/ProdutoPage";
+import GeografiaPage from "./pages/GeografiaPage";
+import EvolucaoPage from "./pages/EvolucaoPage";
+import UploadPage from "./pages/UploadPage";
+import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
@@ -14,11 +22,19 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AppLayout>
+          <Routes>
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/bu" element={<BUPage />} />
+            <Route path="/canal" element={<CanalPage />} />
+            <Route path="/cliente" element={<ClientePage />} />
+            <Route path="/produto" element={<ProdutoPage />} />
+            <Route path="/geografia" element={<GeografiaPage />} />
+            <Route path="/evolucao" element={<EvolucaoPage />} />
+            <Route path="/upload" element={<UploadPage />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AppLayout>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
