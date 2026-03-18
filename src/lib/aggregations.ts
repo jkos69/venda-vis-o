@@ -80,6 +80,30 @@ export function groupBy<T>(arr: T[], keyFn: (item: T) => string): Record<string,
 }
 
 /**
+ * Groups by a normalized (uppercased) key but preserves a Title Case display label.
+ * Returns entries sorted by the callback or as-is.
+ */
+export function groupByNormalized<T>(
+  arr: T[],
+  keyFn: (item: T) => string
+): Record<string, { label: string; items: T[] }> {
+  const result: Record<string, { label: string; items: T[] }> = {};
+  for (const item of arr) {
+    const raw = keyFn(item) || '';
+    const normKey = raw.trim().toUpperCase();
+    if (!normKey) continue;
+    if (!result[normKey]) {
+      // Use Title Case of first occurrence as display label
+      const label = raw.trim().toLowerCase().split(' ')
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      result[normKey] = { label, items: [] };
+    }
+    result[normKey].items.push(item);
+  }
+  return result;
+}
+
+/**
  * Retorna o conjunto de meses que têm dados reais (base contendo 'real' e '26').
  */
 export function getMesesComDadosReais(data: RawDataRow[]): Set<number> {
