@@ -40,15 +40,10 @@ export default function UploadPage() {
     setProgress(0);
     setFileName(file.name);
 
-    const interval = setInterval(() => {
-      setProgress((p) => Math.min(p + Math.random() * 15, 40));
-    }, 150);
-
     try {
       const buffer = await file.arrayBuffer();
       const { data, preview: prev, unmappedColumns, sheetName } = parseExcelFile(buffer);
-      clearInterval(interval);
-      setProgress(50);
+      setProcessing(false);
       setPreview(prev);
       setRowCount(data.length);
       setSheetInfo({ sheetName, unmapped: unmappedColumns });
@@ -60,32 +55,28 @@ export default function UploadPage() {
         uploadedAt: new Date(),
       };
 
-      // Salva no banco
+      // Salva em chunks no banco
       setSaving(true);
-      setProgress(60);
+      setProgress(0);
 
-      const progressInterval = setInterval(() => {
-        setProgress((p) => Math.min(p + Math.random() * 5, 90));
-      }, 300);
+      const { error: saveError } = await saveUploadToSupabase(data, meta, (percent) => {
+        setProgress(percent);
+      });
 
-      const { error: saveError } = await saveUploadToSupabase(data, meta);
-      clearInterval(progressInterval);
+      setSaving(false);
 
       if (saveError) {
         setError(`Erro ao salvar no banco: ${saveError}`);
         toast.error(`Erro ao salvar: ${saveError}`);
       } else {
-        setProgress(100);
         setData(data, meta);
-        toast.success(`${data.length.toLocaleString('pt-BR')} linhas carregadas e salvas com sucesso!`);
+        toast.success(`${data.length.toLocaleString('pt-BR')} linhas salvas com sucesso!`);
       }
     } catch (e: any) {
-      clearInterval(interval);
-      setProgress(0);
-      setError(e.message || 'Erro ao processar arquivo');
-    } finally {
       setProcessing(false);
       setSaving(false);
+      setProgress(0);
+      setError(e.message || 'Erro ao processar arquivo');
     }
   }, [setData]);
 
@@ -175,15 +166,28 @@ export default function UploadPage() {
         </p>
       </div>
 
-      {(processing || saving) && (
+      {processing && (
         <div className="space-y-3 p-4 rounded-lg bg-surface shadow-layered">
           <div className="flex items-center gap-3">
             <Loader2 className="h-4 w-4 text-primary animate-spin" />
-            <span className="text-sm text-muted-foreground">
-              {saving ? `Salvando ${fileName} no banco...` : `Processando ${fileName}...`}
-            </span>
+            <span className="text-sm text-muted-foreground">Processando {fileName}...</span>
+          </div>
+        </div>
+      )}
+
+      {saving && (
+        <div className="space-y-3 p-4 rounded-lg bg-surface shadow-layered">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Loader2 className="h-4 w-4 text-primary animate-spin" />
+              <span className="text-sm text-muted-foreground">Salvando no banco de dados...</span>
+            </div>
+            <span className="text-sm font-medium text-foreground tabular-nums">{progress}%</span>
           </div>
           <Progress value={progress} className="h-2" />
+          <p className="text-xs text-muted-foreground">
+            Processando {rowCount.toLocaleString('pt-BR')} linhas em partes. Não feche esta janela.
+          </p>
         </div>
       )}
 
