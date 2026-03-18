@@ -11,6 +11,7 @@ export default function UploadPage() {
   const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const [fileName, setFileName] = useState('');
+  const [sheetInfo, setSheetInfo] = useState<{ sheetName: string; unmapped: string[] } | null>(null);
   const setData = useStore((s) => s.setData);
   const uploadMeta = useStore((s) => s.uploadMeta);
   const navigate = useNavigate();
