@@ -14,6 +14,11 @@ function normalize(s: string): string {
     .trim();
 }
 
+function toTitleCase(str: string): string {
+  if (!str || str.trim() === '') return str;
+  return str.toLowerCase().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
 function getVal(row: Record<string, any>, candidates: string[]): any {
   for (const c of candidates) {
     if (row[c] !== undefined && row[c] !== null) return row[c];
