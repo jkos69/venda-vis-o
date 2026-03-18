@@ -1,8 +1,20 @@
-import { useCallback, useState } from 'react';
-import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useCallback, useState, useEffect } from 'react';
+import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Trash2 } from 'lucide-react';
 import { parseExcelFile } from '@/lib/parseExcel';
 import { useStore } from '@/store/useStore';
 import { useNavigate } from 'react-router-dom';
+import { Progress } from '@/components/ui/progress';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 export default function UploadPage() {
   const [dragOver, setDragOver] = useState(false);
@@ -10,19 +22,30 @@ export default function UploadPage() {
   const [rowCount, setRowCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [fileName, setFileName] = useState('');
   const [sheetInfo, setSheetInfo] = useState<{ sheetName: string; unmapped: string[] } | null>(null);
   const setData = useStore((s) => s.setData);
+  const clearData = useStore((s) => s.clearData);
   const uploadMeta = useStore((s) => s.uploadMeta);
   const navigate = useNavigate();
 
   const processFile = useCallback(async (file: File) => {
     setError(null);
     setProcessing(true);
+    setProgress(0);
     setFileName(file.name);
+
+    // Simulated progress bar
+    const interval = setInterval(() => {
+      setProgress((p) => Math.min(p + Math.random() * 20, 85));
+    }, 150);
+
     try {
       const buffer = await file.arrayBuffer();
       const { data, preview: prev, unmappedColumns, sheetName } = parseExcelFile(buffer);
+      clearInterval(interval);
+      setProgress(100);
       setPreview(prev);
       setRowCount(data.length);
       setSheetInfo({ sheetName, unmapped: unmappedColumns });
@@ -32,11 +55,13 @@ export default function UploadPage() {
         uploadedAt: new Date(),
       });
     } catch (e: any) {
+      clearInterval(interval);
+      setProgress(0);
       setError(e.message || 'Erro ao processar arquivo');
     } finally {
       setProcessing(false);
     }
-  }, [setData]);
+  }, [setData, clearData]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -50,13 +75,48 @@ export default function UploadPage() {
     if (file) processFile(file);
   }, [processFile]);
 
+  const handleClearData = useCallback(() => {
+    clearData();
+    setPreview(null);
+    setRowCount(0);
+    setSheetInfo(null);
+    setFileName('');
+    setProgress(0);
+  }, [clearData]);
+
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground tracking-tight">Upload de Dados</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Importe a planilha Excel (.xlsx) com a base de vendas para análise.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-foreground tracking-tight">Upload de Dados</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Importe a planilha Excel (.xlsx) com a base de vendas para análise.
+          </p>
+        </div>
+        {(uploadMeta || preview) && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <button className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-destructive bg-destructive/10 border border-destructive/20 rounded-lg hover:bg-destructive/20 transition-colors duration-150">
+                <Trash2 className="h-4 w-4" />
+                Limpar Dados
+              </button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Remover todos os dados?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Tem certeza que deseja remover todos os dados? Esta ação não pode ser desfeita.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleClearData} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Sim, remover tudo
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
       </div>
 
       {/* Drop Zone */}
@@ -88,9 +148,12 @@ export default function UploadPage() {
       </div>
 
       {processing && (
-        <div className="flex items-center gap-3 p-4 rounded-lg bg-surface shadow-layered">
-          <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm text-muted-foreground">Processando {fileName}...</span>
+        <div className="space-y-3 p-4 rounded-lg bg-surface shadow-layered">
+          <div className="flex items-center gap-3">
+            <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            <span className="text-sm text-muted-foreground">Processando {fileName}...</span>
+          </div>
+          <Progress value={progress} className="h-2" />
         </div>
       )}
 
@@ -174,7 +237,7 @@ export default function UploadPage() {
           <div>
             <p className="text-sm font-medium text-foreground">Dados carregados: {uploadMeta.fileName}</p>
             <p className="text-xs text-muted-foreground">
-              {uploadMeta.rowCount.toLocaleString('pt-BR')} linhas | Importado em {uploadMeta.uploadedAt.toLocaleDateString('pt-BR')} às {uploadMeta.uploadedAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+              {uploadMeta.rowCount?.toLocaleString('pt-BR')} linhas | Importado em {new Date(uploadMeta.uploadedAt).toLocaleDateString('pt-BR')} às {new Date(uploadMeta.uploadedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
             </p>
           </div>
         </div>
