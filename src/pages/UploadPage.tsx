@@ -22,9 +22,10 @@ export default function UploadPage() {
     setFileName(file.name);
     try {
       const buffer = await file.arrayBuffer();
-      const { data, preview: prev } = parseExcelFile(buffer);
+      const { data, preview: prev, unmappedColumns, sheetName } = parseExcelFile(buffer);
       setPreview(prev);
       setRowCount(data.length);
+      setSheetInfo({ sheetName, unmapped: unmappedColumns });
       setData(data, {
         fileName: file.name,
         rowCount: data.length,
