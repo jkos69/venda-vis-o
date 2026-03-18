@@ -1,10 +1,11 @@
 import { useStore, useFilteredData } from '@/store/useStore';
 import { formatCurrency, formatPct, formatPctDirect, formatQty, getDeltaColorClass, formatDeltaCurrency } from '@/lib/format';
-import { aggregate, receitaLiquida, receitaLiquidaProdutos, totalImpostos, deltaPercent, filterByBase, getMesesComDadosReais, filtrarPelosMesesDoReal } from '@/lib/aggregations';
+import { aggregate, receitaLiquida, receitaLiquidaProdutos, totalImpostos, deltaPercent, filterByBase, getMesesComDadosReais, filtrarPelosMesesDoReal, groupBy } from '@/lib/aggregations';
 import { GlobalFilters } from '@/components/GlobalFilters';
 import { KPICard } from '@/components/KPICard';
 import { useNavigate } from 'react-router-dom';
 import { Upload } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, Line, ComposedChart } from 'recharts';
 
 const MESES = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
@@ -101,6 +102,24 @@ export default function DashboardPage() {
     { label: 'Margem Bruta %', real: mbPctReal, comp: mbPctComp, real25v: mbPctR25, format: 'pctDirect' as const, invert: false, isBold: false },
   ];
 
+  // Monthly chart data
+  const byMonthR26 = groupBy(allReal26, (r) => String(r.mes));
+  const byMonthO26 = groupBy(allOrc26, (r) => String(r.mes));
+  const byMonthR25 = groupBy(allReal25, (r) => String(r.mes));
+
+  const monthlyChartData = mesesOrdenados.map((m) => {
+    const r26 = aggregate(byMonthR26[String(m)] || []).receitaBrutaOperacional;
+    const o26 = aggregate(byMonthO26[String(m)] || []).receitaBrutaOperacional;
+    const r25 = aggregate(byMonthR25[String(m)] || []).receitaBrutaOperacional;
+    return {
+      mes: MESES[m],
+      'Real 26': r26,
+      'Orç 26': o26,
+      'Real 25': r25,
+      delta: o26 !== 0 ? ((r26 - o26) / Math.abs(o26)) * 100 : null,
+    };
+  });
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -190,6 +209,47 @@ export default function DashboardPage() {
           </p>
         </div>
       </div>
+
+      {/* Monthly Comparison Chart */}
+      {monthlyChartData.length > 0 && (
+        <div className="rounded-xl bg-surface shadow-layered p-5">
+          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
+            Receita Bruta Operacional — Comparativo Mensal
+          </h2>
+          <ResponsiveContainer width="100%" height={350}>
+            <ComposedChart data={monthlyChartData} margin={{ left: 10, right: 10, top: 10, bottom: 10 }}>
+              <XAxis dataKey="mes" stroke="hsl(215,15%,65%)" fontSize={11} />
+              <YAxis
+                tickFormatter={(v) => `R$ ${(v / 1000000).toFixed(1)}M`}
+                stroke="hsl(215,15%,65%)"
+                fontSize={10}
+              />
+              <Tooltip
+                content={({ active, payload, label }) => {
+                  if (!active || !payload?.length) return null;
+                  const r26 = payload.find(p => p.dataKey === 'Real 26')?.value as number ?? 0;
+                  const o26 = payload.find(p => p.dataKey === 'Orç 26')?.value as number ?? 0;
+                  const r25 = payload.find(p => p.dataKey === 'Real 25')?.value as number ?? 0;
+                  const dOrc = o26 !== 0 ? ((r26 - o26) / Math.abs(o26)) * 100 : null;
+                  const dAA = r25 !== 0 ? ((r26 - r25) / Math.abs(r25)) * 100 : null;
+                  return (
+                    <div className="bg-popover border border-border rounded-lg shadow-xl p-3 text-xs space-y-1">
+                      <p className="font-semibold text-foreground">{label}/26</p>
+                      <p className="text-foreground">Real 26: <span className="font-medium">{formatCurrency(r26)}</span></p>
+                      <p className="text-muted-foreground">Orç 26: {formatCurrency(o26)} {dOrc != null && <span className={dOrc >= 0 ? 'text-emerald-400' : 'text-red-400'}>({dOrc >= 0 ? '+' : ''}{dOrc.toFixed(1)}%)</span>}</p>
+                      <p className="text-muted-foreground">Real 25: {formatCurrency(r25)} {dAA != null && <span className={dAA >= 0 ? 'text-emerald-400' : 'text-red-400'}>({dAA >= 0 ? '+' : ''}{dAA.toFixed(1)}%)</span>}</p>
+                    </div>
+                  );
+                }}
+              />
+              <Legend wrapperStyle={{ fontSize: 11, paddingTop: 10 }} />
+              <Bar dataKey="Real 26" fill="hsl(210,100%,56%)" radius={[4, 4, 0, 0]} barSize={32} />
+              <Bar dataKey="Orç 26" fill="hsl(215,15%,35%)" radius={[4, 4, 0, 0]} barSize={32} />
+              <Line type="monotone" dataKey="Real 25" stroke="hsl(30,90%,55%)" strokeWidth={2.5} dot={{ r: 4, fill: 'hsl(30,90%,55%)', strokeWidth: 0 }} activeDot={{ r: 5, strokeWidth: 0 }} />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+      )}
     </div>
   );
 }

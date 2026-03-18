@@ -46,20 +46,32 @@ export function GlobalFilters() {
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
+        {/* Base Comparação — Toggle Buttons */}
+        <div className="flex items-center rounded-lg border border-border overflow-hidden">
+          {baseOptions.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => setFilter('baseComparacao', opt.value as any)}
+              className={`px-3 py-2 text-xs font-medium transition-colors duration-150 ${
+                filters.baseComparacao === opt.value
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-surface text-muted-foreground hover:text-foreground hover:bg-accent/30'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="w-px h-6 bg-border mx-1" />
+
         {/* Mês */}
         <SingleSelect
           label="Período"
           options={mesOptions}
           value={String(filters.mes)}
           onChange={(v) => setFilter('mes', v === 'acumulado' ? 'acumulado' : Number(v))}
-        />
-
-        {/* Base Comparação */}
-        <SingleSelect
-          label="Comparar"
-          options={baseOptions}
-          value={filters.baseComparacao}
-          onChange={(v) => setFilter('baseComparacao', v as any)}
         />
 
         <div className="w-px h-6 bg-border mx-1" />
