@@ -1,10 +1,16 @@
 import { useStore, useFilteredData } from '@/store/useStore';
-import { formatCurrency, formatPct, formatQty, getDeltaColorClass, formatDeltaCurrency } from '@/lib/format';
+import { formatCurrency, formatPct, formatPctDirect, formatQty, getDeltaColorClass, formatDeltaCurrency } from '@/lib/format';
 import { aggregate, receitaLiquida, receitaLiquidaProdutos, totalImpostos, deltaPercent, filterByBase } from '@/lib/aggregations';
 import { GlobalFilters } from '@/components/GlobalFilters';
 import { KPICard } from '@/components/KPICard';
 import { useNavigate } from 'react-router-dom';
 import { Upload } from 'lucide-react';
+
+function formatCell(value: number, format: 'qty' | 'currency' | 'pctDirect'): string {
+  if (format === 'qty') return formatQty(value);
+  if (format === 'pctDirect') return formatPctDirect(value);
+  return formatCurrency(value);
+}
 
 export default function DashboardPage() {
   const data = useFilteredData();
