@@ -2,6 +2,7 @@ import { useStore, useFilteredData } from '@/store/useStore';
 import { aggregate, filterByBase, groupBy } from '@/lib/aggregations';
 import { formatCurrency } from '@/lib/format';
 import { GlobalFilters } from '@/components/GlobalFilters';
+import { ChartTooltip } from '@/components/ChartTooltip';
 import { Upload } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
