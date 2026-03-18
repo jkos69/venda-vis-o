@@ -37,7 +37,29 @@ export default function DashboardPage() {
   const rlReal = receitaLiquida(real26);
   const rlComp = receitaLiquida(compBase);
 
-  // P&L Rows
+  const rlpReal = receitaLiquidaProdutos(real26);
+  const rlpComp = receitaLiquidaProdutos(compBase);
+  const rlpR25 = receitaLiquidaProdutos(real25);
+
+  // Margem Bruta = Receita Líquida (sem CPV por ora, CPV não consta na base)
+  // CPV não está disponível na planilha, exibimos como 0
+  const cpvReal = 0;
+  const cpvComp = 0;
+  const cpvR25 = 0;
+
+  const mbReal = rlReal - cpvReal;
+  const mbComp = rlComp - cpvComp;
+  const mbR25 = receitaLiquida(real25) - cpvR25;
+
+  const cpvRobReal = real26.receitaBrutaOperacional !== 0 ? cpvReal / real26.receitaBrutaOperacional : 0;
+  const cpvRobComp = compBase.receitaBrutaOperacional !== 0 ? cpvComp / compBase.receitaBrutaOperacional : 0;
+  const cpvRobR25 = real25.receitaBrutaOperacional !== 0 ? cpvR25 / real25.receitaBrutaOperacional : 0;
+
+  const mbPctReal = real26.receitaBrutaOperacional !== 0 ? mbReal / real26.receitaBrutaOperacional : 0;
+  const mbPctComp = compBase.receitaBrutaOperacional !== 0 ? mbComp / compBase.receitaBrutaOperacional : 0;
+  const mbPctR25 = real25.receitaBrutaOperacional !== 0 ? mbR25 / real25.receitaBrutaOperacional : 0;
+
+  // P&L Rows — ordem exata conforme especificação
   const plRows = [
     {
       label: 'Quantidade',
@@ -58,7 +80,7 @@ export default function DashboardPage() {
       isBold: true,
     },
     {
-      label: '  Receita Bruta com Produtos',
+      label: '    Receita Bruta com Produtos',
       real: real26.receitaBrutaProdutos,
       comp: compBase.receitaBrutaProdutos,
       real25v: real25.receitaBrutaProdutos,
@@ -67,7 +89,7 @@ export default function DashboardPage() {
       isBold: false,
     },
     {
-      label: '  Outras Receitas',
+      label: '    Outras Receitas',
       real: real26.receitaBrutaOutrasReceitas,
       comp: compBase.receitaBrutaOutrasReceitas,
       real25v: real25.receitaBrutaOutrasReceitas,
@@ -94,6 +116,15 @@ export default function DashboardPage() {
       isBold: false,
     },
     {
+      label: 'Receita Líquida com Produtos',
+      real: rlpReal,
+      comp: rlpComp,
+      real25v: rlpR25,
+      format: 'currency' as const,
+      invert: false,
+      isBold: true,
+    },
+    {
       label: 'Receita Operacional Líquida',
       real: rlReal,
       comp: rlComp,
@@ -101,6 +132,42 @@ export default function DashboardPage() {
       format: 'currency' as const,
       invert: false,
       isBold: true,
+    },
+    {
+      label: '(-) Custo do Produto Vendido',
+      real: -Math.abs(cpvReal),
+      comp: -Math.abs(cpvComp),
+      real25v: -Math.abs(cpvR25),
+      format: 'currency' as const,
+      invert: true,
+      isBold: false,
+    },
+    {
+      label: 'CPV/ROB %',
+      real: cpvRobReal,
+      comp: cpvRobComp,
+      real25v: cpvRobR25,
+      format: 'pctDirect' as const,
+      invert: true,
+      isBold: false,
+    },
+    {
+      label: 'Margem Bruta',
+      real: mbReal,
+      comp: mbComp,
+      real25v: mbR25,
+      format: 'currency' as const,
+      invert: false,
+      isBold: true,
+    },
+    {
+      label: 'Margem Bruta %',
+      real: mbPctReal,
+      comp: mbPctComp,
+      real25v: mbPctR25,
+      format: 'pctDirect' as const,
+      invert: false,
+      isBold: false,
     },
   ];
 
