@@ -1,5 +1,5 @@
 import { useStore, useFilteredData } from '@/store/useStore';
-import { aggregate, filterByBase, deltaPercent, groupBy } from '@/lib/aggregations';
+import { aggregate, filterByBase, deltaPercent, groupBy, getMesesComDadosReais, filtrarPelosMesesDoReal } from '@/lib/aggregations';
 import { formatCurrency, formatPct, getDeltaColorClass } from '@/lib/format';
 import { GlobalFilters } from '@/components/GlobalFilters';
 import { Upload } from 'lucide-react';
@@ -24,8 +24,11 @@ export default function CanalPage() {
     );
   }
 
+  const mesesDoReal = getMesesComDadosReais(data);
+
   const real26 = filterByBase(data, 'Real 26');
-  const comp = filterByBase(data, filters.baseComparacao === 'orcamento' ? 'Orç 26' : 'Real 25');
+  const compRaw = filterByBase(data, filters.baseComparacao === 'orcamento' ? 'Orç 26' : 'Real 25');
+  const comp = filtrarPelosMesesDoReal(compRaw, mesesDoReal);
   const compLabel = filters.baseComparacao === 'orcamento' ? 'Orç 26' : 'Real 25';
 
   const segReal = groupBy(real26, (r) => r.segmento);
@@ -60,7 +63,6 @@ export default function CanalPage() {
       <GlobalFilters />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Pie */}
         <div className="rounded-xl bg-surface shadow-layered p-5">
           <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Participação por Segmento</h2>
           <ResponsiveContainer width="100%" height={250}>
@@ -73,7 +75,6 @@ export default function CanalPage() {
           </ResponsiveContainer>
         </div>
 
-        {/* Bar */}
         <div className="rounded-xl bg-surface shadow-layered p-5">
           <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Real vs {compLabel}</h2>
           <ResponsiveContainer width="100%" height={250}>
@@ -89,7 +90,6 @@ export default function CanalPage() {
         </div>
       </div>
 
-      {/* Table */}
       <div className="rounded-xl bg-surface shadow-layered overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

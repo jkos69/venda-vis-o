@@ -1,5 +1,5 @@
 import { useStore, useFilteredData } from '@/store/useStore';
-import { aggregate, filterByBase, deltaPercent, groupBy } from '@/lib/aggregations';
+import { aggregate, filterByBase, deltaPercent, groupBy, getMesesComDadosReais, filtrarPelosMesesDoReal } from '@/lib/aggregations';
 import { formatCurrency, formatPct, getDeltaColorClass, formatQty } from '@/lib/format';
 import { GlobalFilters } from '@/components/GlobalFilters';
 import { Upload, Search } from 'lucide-react';
@@ -26,8 +26,11 @@ export default function ClientePage() {
     );
   }
 
+  const mesesDoReal = getMesesComDadosReais(data);
+
   const real26 = filterByBase(data, 'Real 26');
-  const comp = filterByBase(data, filters.baseComparacao === 'orcamento' ? 'Orç 26' : 'Real 25');
+  const compRaw = filterByBase(data, filters.baseComparacao === 'orcamento' ? 'Orç 26' : 'Real 25');
+  const comp = filtrarPelosMesesDoReal(compRaw, mesesDoReal);
   const compLabel = filters.baseComparacao === 'orcamento' ? 'Orç 26' : 'Real 25';
 
   const cliReal = groupBy(real26, (r) => r.cliente);
@@ -41,8 +44,7 @@ export default function ClientePage() {
     const cAgg = aggregate(cliComp[cli] || []);
     const grupo = (cliReal[cli]?.[0] || cliComp[cli]?.[0])?.grupoClientes || '';
     return {
-      cli,
-      grupo,
+      cli, grupo,
       real: rAgg.receitaBrutaOperacional,
       comp: cAgg.receitaBrutaOperacional,
       delta: deltaPercent(rAgg.receitaBrutaOperacional, cAgg.receitaBrutaOperacional),
@@ -67,7 +69,6 @@ export default function ClientePage() {
       <h1 className="text-xl font-semibold text-foreground tracking-tight">Visão por Cliente</h1>
       <GlobalFilters />
 
-      {/* Chart */}
       <div className="rounded-xl bg-surface shadow-layered p-5">
         <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Top 15 Clientes — Receita Bruta</h2>
         <ResponsiveContainer width="100%" height={350}>
@@ -80,30 +81,18 @@ export default function ClientePage() {
         </ResponsiveContainer>
       </div>
 
-      {/* Controls */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Buscar cliente..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-surface text-foreground text-xs border border-border rounded-lg pl-8 pr-3 py-2 focus:ring-1 focus:ring-primary outline-none"
-          />
+          <input type="text" placeholder="Buscar cliente..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full bg-surface text-foreground text-xs border border-border rounded-lg pl-8 pr-3 py-2 focus:ring-1 focus:ring-primary outline-none" />
         </div>
-        <select
-          value={limit}
-          onChange={(e) => setLimit(Number(e.target.value))}
-          className="bg-surface text-foreground text-xs border border-border rounded-lg px-3 py-2 focus:ring-1 focus:ring-primary outline-none"
-        >
+        <select value={limit} onChange={(e) => setLimit(Number(e.target.value))} className="bg-surface text-foreground text-xs border border-border rounded-lg px-3 py-2 focus:ring-1 focus:ring-primary outline-none">
           <option value={10}>Top 10</option>
           <option value={20}>Top 20</option>
           <option value={0}>Todos</option>
         </select>
       </div>
 
-      {/* Table */}
       <div className="rounded-xl bg-surface shadow-layered overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -121,11 +110,7 @@ export default function ClientePage() {
             <tbody>
               {displayed.map((row, i) => (
                 <>
-                  <tr
-                    key={row.cli}
-                    className="border-b border-border/30 hover:bg-accent/20 transition-colors duration-150 cursor-pointer"
-                    onClick={() => setExpandedClient(expandedClient === row.cli ? null : row.cli)}
-                  >
+                  <tr key={row.cli} className="border-b border-border/30 hover:bg-accent/20 transition-colors duration-150 cursor-pointer" onClick={() => setExpandedClient(expandedClient === row.cli ? null : row.cli)}>
                     <td className="px-5 py-2.5 text-muted-foreground tabular-nums">{i + 1}</td>
                     <td className="px-4 py-2.5 font-medium text-foreground">{row.cli}</td>
                     <td className="px-4 py-2.5 text-muted-foreground text-xs">{row.grupo}</td>

@@ -1,5 +1,5 @@
 import { useStore, useFilteredData } from '@/store/useStore';
-import { aggregate, filterByBase, deltaPercent, groupBy } from '@/lib/aggregations';
+import { aggregate, filterByBase, deltaPercent, groupBy, getMesesComDadosReais, filtrarPelosMesesDoReal } from '@/lib/aggregations';
 import { formatCurrency, formatPct, getDeltaColorClass, formatQty } from '@/lib/format';
 import { GlobalFilters } from '@/components/GlobalFilters';
 import { Upload, ChevronRight, ChevronDown } from 'lucide-react';
@@ -23,13 +23,15 @@ export default function ProdutoPage() {
     );
   }
 
+  const mesesDoReal = getMesesComDadosReais(data);
+
   const real26 = filterByBase(data, 'Real 26');
-  const comp = filterByBase(data, filters.baseComparacao === 'orcamento' ? 'Orç 26' : 'Real 25');
+  const compRaw = filterByBase(data, filters.baseComparacao === 'orcamento' ? 'Orç 26' : 'Real 25');
+  const comp = filtrarPelosMesesDoReal(compRaw, mesesDoReal);
   const compLabel = filters.baseComparacao === 'orcamento' ? 'Orç 26' : 'Real 25';
 
   const totalReal = aggregate(real26).receitaBrutaOperacional;
 
-  // Group by Familia
   const famReal = groupBy(real26, (r) => r.familia);
   const famComp = groupBy(comp, (r) => r.familia);
   const familias = [...new Set([...Object.keys(famReal), ...Object.keys(famComp)])].filter(Boolean).sort();
@@ -77,11 +79,7 @@ export default function ProdutoPage() {
                 const isExpanded = expanded.has(fam.fam);
                 return (
                   <>
-                    <tr
-                      key={fam.fam}
-                      className="border-b border-border/30 hover:bg-accent/20 transition-colors duration-150 cursor-pointer"
-                      onClick={() => toggle(fam.fam)}
-                    >
+                    <tr key={fam.fam} className="border-b border-border/30 hover:bg-accent/20 transition-colors duration-150 cursor-pointer" onClick={() => toggle(fam.fam)}>
                       <td className="px-5 py-2.5 font-semibold text-foreground flex items-center gap-1">
                         {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                         {fam.fam}
@@ -91,7 +89,7 @@ export default function ProdutoPage() {
                       <td className={`text-right px-4 py-2.5 tabular-nums font-medium ${getDeltaColorClass(fam.delta)}`}>{formatPct(fam.delta)}</td>
                       <td className="text-right px-4 py-2.5 tabular-nums text-muted-foreground">{formatPct(fam.mix)}</td>
                     </tr>
-                    {isExpanded && <GrupoRows fam={fam.fam} data={data} filters={filters} compLabel={compLabel} totalReal={totalReal} expanded={expanded} toggle={toggle} />}
+                    {isExpanded && <GrupoRows fam={fam.fam} data={data} filters={filters} compLabel={compLabel} totalReal={totalReal} expanded={expanded} toggle={toggle} mesesDoReal={mesesDoReal} />}
                   </>
                 );
               })}
@@ -103,10 +101,11 @@ export default function ProdutoPage() {
   );
 }
 
-function GrupoRows({ fam, data, filters, compLabel, totalReal, expanded, toggle }: any) {
+function GrupoRows({ fam, data, filters, compLabel, totalReal, expanded, toggle, mesesDoReal }: any) {
   const famData = data.filter((r: any) => r.familia === fam);
   const real26 = filterByBase(famData, 'Real 26');
-  const comp = filterByBase(famData, filters.baseComparacao === 'orcamento' ? 'Orç 26' : 'Real 25');
+  const compRaw = filterByBase(famData, filters.baseComparacao === 'orcamento' ? 'Orç 26' : 'Real 25');
+  const comp = filtrarPelosMesesDoReal(compRaw, mesesDoReal);
 
   const gpReal = groupBy(real26, (r: any) => r.grupoProduto);
   const gpComp = groupBy(comp, (r: any) => r.grupoProduto);
@@ -133,7 +132,7 @@ function GrupoRows({ fam, data, filters, compLabel, totalReal, expanded, toggle 
               <td className={`text-right px-4 py-2 tabular-nums text-xs font-medium ${getDeltaColorClass(dp)}`}>{formatPct(dp)}</td>
               <td className="text-right px-4 py-2 tabular-nums text-xs text-muted-foreground">{formatPct(totalReal ? rAgg.receitaBrutaOperacional / totalReal : 0)}</td>
             </tr>
-            {isExpanded && <ProductRows gp={gp} fam={fam} data={data} filters={filters} totalReal={totalReal} />}
+            {isExpanded && <ProductRows gp={gp} fam={fam} data={data} filters={filters} totalReal={totalReal} mesesDoReal={mesesDoReal} />}
           </>
         );
       })}
@@ -141,10 +140,11 @@ function GrupoRows({ fam, data, filters, compLabel, totalReal, expanded, toggle 
   );
 }
 
-function ProductRows({ gp, fam, data, filters, totalReal }: any) {
+function ProductRows({ gp, fam, data, filters, totalReal, mesesDoReal }: any) {
   const gpData = data.filter((r: any) => r.familia === fam && r.grupoProduto === gp);
   const real26 = filterByBase(gpData, 'Real 26');
-  const comp = filterByBase(gpData, filters.baseComparacao === 'orcamento' ? 'Orç 26' : 'Real 25');
+  const compRaw = filterByBase(gpData, filters.baseComparacao === 'orcamento' ? 'Orç 26' : 'Real 25');
+  const comp = filtrarPelosMesesDoReal(compRaw, mesesDoReal);
 
   const pReal = groupBy(real26, (r: any) => r.descricaoProduto);
   const pComp = groupBy(comp, (r: any) => r.descricaoProduto);

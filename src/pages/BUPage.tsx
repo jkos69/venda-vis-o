@@ -1,5 +1,5 @@
 import { useStore, useFilteredData } from '@/store/useStore';
-import { aggregate, filterByBase, deltaPercent, groupBy } from '@/lib/aggregations';
+import { aggregate, filterByBase, deltaPercent, groupBy, getMesesComDadosReais, filtrarPelosMesesDoReal } from '@/lib/aggregations';
 import { formatCurrency, formatPct, getDeltaColorClass, formatQty } from '@/lib/format';
 import { GlobalFilters } from '@/components/GlobalFilters';
 import { Upload } from 'lucide-react';
@@ -26,8 +26,11 @@ export default function BUPage() {
     );
   }
 
+  const mesesDoReal = getMesesComDadosReais(data);
+
   const real26 = filterByBase(data, 'Real 26');
-  const comp = filterByBase(data, filters.baseComparacao === 'orcamento' ? 'Orç 26' : 'Real 25');
+  const compRaw = filterByBase(data, filters.baseComparacao === 'orcamento' ? 'Orç 26' : 'Real 25');
+  const comp = filtrarPelosMesesDoReal(compRaw, mesesDoReal);
   const compLabel = filters.baseComparacao === 'orcamento' ? 'Orç 26' : 'Real 25';
 
   const buGroupsReal = groupBy(real26, (r) => r.bu);
@@ -60,7 +63,6 @@ export default function BUPage() {
       <h1 className="text-xl font-semibold text-foreground tracking-tight">Visão por Business Unit</h1>
       <GlobalFilters />
 
-      {/* Chart */}
       <div className="rounded-xl bg-surface shadow-layered p-5">
         <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
           Top 10 BUs — Receita Bruta Operacional
@@ -69,12 +71,7 @@ export default function BUPage() {
           <BarChart data={chartData} layout="vertical" margin={{ left: 120, right: 20, top: 5, bottom: 5 }}>
             <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} stroke="hsl(215,15%,65%)" fontSize={10} />
             <YAxis type="category" dataKey="name" stroke="hsl(215,15%,65%)" fontSize={10} width={110} />
-            <Tooltip
-              formatter={(v: number) => formatCurrency(v)}
-              contentStyle={{ backgroundColor: 'hsl(222,24%,7%)', border: '1px solid hsl(217,19%,14%)', borderRadius: 8, fontSize: 12 }}
-              labelStyle={{ color: 'hsl(210,40%,98%)' }}
-              itemStyle={{ color: 'hsl(210,40%,98%)' }}
-            />
+            <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={{ backgroundColor: 'hsl(222,24%,7%)', border: '1px solid hsl(217,19%,14%)', borderRadius: 8, fontSize: 12 }} labelStyle={{ color: 'hsl(210,40%,98%)' }} itemStyle={{ color: 'hsl(210,40%,98%)' }} />
             <Bar dataKey="value" radius={[0, 4, 4, 0]}>
               {chartData.map((entry, i) => (
                 <Cell key={i} fill={entry.delta != null && entry.delta >= 0 ? 'hsl(165,100%,39%)' : 'hsl(0,100%,63%)'} fillOpacity={0.8} />
@@ -84,7 +81,6 @@ export default function BUPage() {
         </ResponsiveContainer>
       </div>
 
-      {/* Table */}
       <div className="rounded-xl bg-surface shadow-layered overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -114,7 +110,7 @@ export default function BUPage() {
                     <td className={`text-right px-4 py-2.5 tabular-nums font-medium ${getDeltaColorClass(row.deltaQty)}`}>{formatPct(row.deltaQty)}</td>
                   </tr>
                   {expandedBU === row.bu && (
-                    <DrillDown bu={row.bu} data={data} filters={filters} compLabel={compLabel} />
+                    <DrillDown bu={row.bu} data={data} filters={filters} compLabel={compLabel} mesesDoReal={mesesDoReal} />
                   )}
                 </>
               ))}
@@ -126,10 +122,11 @@ export default function BUPage() {
   );
 }
 
-function DrillDown({ bu, data, filters, compLabel }: { bu: string; data: any[]; filters: any; compLabel: string }) {
+function DrillDown({ bu, data, filters, compLabel, mesesDoReal }: { bu: string; data: any[]; filters: any; compLabel: string; mesesDoReal: Set<number> }) {
   const buData = data.filter((r) => r.bu === bu);
   const real26 = filterByBase(buData, 'Real 26');
-  const comp = filterByBase(buData, filters.baseComparacao === 'orcamento' ? 'Orç 26' : 'Real 25');
+  const compRaw = filterByBase(buData, filters.baseComparacao === 'orcamento' ? 'Orç 26' : 'Real 25');
+  const comp = filtrarPelosMesesDoReal(compRaw, mesesDoReal);
 
   const gpReal = groupBy(real26, (r) => r.grupoProduto);
   const gpComp = groupBy(comp, (r) => r.grupoProduto);
