@@ -11,6 +11,7 @@ export default function UploadPage() {
   const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const [fileName, setFileName] = useState('');
+  const [sheetInfo, setSheetInfo] = useState<{ sheetName: string; unmapped: string[] } | null>(null);
   const setData = useStore((s) => s.setData);
   const uploadMeta = useStore((s) => s.uploadMeta);
   const navigate = useNavigate();
@@ -21,9 +22,10 @@ export default function UploadPage() {
     setFileName(file.name);
     try {
       const buffer = await file.arrayBuffer();
-      const { data, preview: prev } = parseExcelFile(buffer);
+      const { data, preview: prev, unmappedColumns, sheetName } = parseExcelFile(buffer);
       setPreview(prev);
       setRowCount(data.length);
+      setSheetInfo({ sheetName, unmapped: unmappedColumns });
       setData(data, {
         fileName: file.name,
         rowCount: data.length,
@@ -107,8 +109,13 @@ export default function UploadPage() {
               <div>
                 <p className="text-sm font-medium text-foreground">{fileName}</p>
                 <p className="text-xs text-muted-foreground">
-                  {rowCount.toLocaleString('pt-BR')} linhas carregadas com sucesso
+                  {rowCount.toLocaleString('pt-BR')} linhas carregadas da aba "{sheetInfo?.sheetName}"
                 </p>
+                {sheetInfo && sheetInfo.unmapped.length > 0 && (
+                  <p className="text-[10px] text-muted-foreground/50 mt-0.5">
+                    Colunas ignoradas: {sheetInfo.unmapped.join(', ')}
+                  </p>
+                )}
               </div>
             </div>
             <button

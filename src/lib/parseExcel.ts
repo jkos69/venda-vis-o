@@ -1,67 +1,153 @@
 import * as XLSX from 'xlsx';
 import type { RawDataRow } from '@/types/data';
 
-function getVal(row: any, keys: string[]): any {
-  for (const k of keys) {
-    if (row[k] !== undefined && row[k] !== null) return row[k];
+/**
+ * Normaliza uma string removendo acentos, convertendo para minúsculas,
+ * e colapsando espaços múltiplos / underscores para um único espaço.
+ */
+function normalize(s: string): string {
+  return s
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[_\s]+/g, ' ')
+    .trim();
+}
+
+/**
+ * Busca um valor na row tentando match exato primeiro,
+ * depois por nome normalizado.
+ */
+function getVal(row: Record<string, any>, candidates: string[]): any {
+  // 1) Exact match
+  for (const c of candidates) {
+    if (row[c] !== undefined && row[c] !== null) return row[c];
+  }
+  // 2) Normalized match against all row keys
+  const normalizedCandidates = candidates.map(normalize);
+  for (const key of Object.keys(row)) {
+    const nk = normalize(key);
+    if (normalizedCandidates.includes(nk)) {
+      if (row[key] !== undefined && row[key] !== null) return row[key];
+    }
   }
   return '';
 }
 
-function getNum(row: any, keys: string[]): number {
-  const v = getVal(row, keys);
+function getNum(row: Record<string, any>, candidates: string[]): number {
+  const v = getVal(row, candidates);
   if (typeof v === 'number') return v;
   if (typeof v === 'string') {
-    const n = parseFloat(v.replace(/\./g, '').replace(',', '.'));
+    // Handle Brazilian number format: 1.234.567,89
+    const cleaned = v.replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
+    const n = parseFloat(cleaned);
     return isNaN(n) ? 0 : n;
   }
   return 0;
 }
 
-export function parseExcelFile(buffer: ArrayBuffer): { data: RawDataRow[]; preview: Record<string, any>[] } {
-  const workbook = XLSX.read(buffer, { type: 'array' });
-  
-  // Try "Base de Dados" first, then first sheet
-  const sheetName = workbook.SheetNames.find(n => 
-    n.toLowerCase().includes('base') || n.toLowerCase().includes('dados')
-  ) || workbook.SheetNames[0];
-  
-  const sheet = workbook.Sheets[sheetName];
-  const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-  
-  const preview = jsonData.slice(0, 5) as Record<string, any>[];
-  
-  const data: RawDataRow[] = jsonData.map((row: any) => ({
-    base: String(getVal(row, ['Base', 'base', 'BASE'])),
-    mes: Number(getVal(row, ['Mês', 'Mes', 'mes', 'MÊS', 'MES'])) || 0,
-    codProduto: String(getVal(row, ['Cod Produto', 'COD PRODUTO', 'Cod_Produto', 'CodProduto'])),
-    descricaoProduto: String(getVal(row, ['Descricao Produto', 'Descrição Produto', 'DESCRICAO PRODUTO', 'DescricaoProduto', 'Descricao_Produto'])),
-    familia: String(getVal(row, ['FAMILIA', 'Familia', 'familia', 'Família'])),
-    grupoProduto: String(getVal(row, ['GRUPO PRODUTO', 'Grupo Produto', 'GrupoProduto'])),
-    subcategoria1: String(getVal(row, ['SUBCAT EGORIA 1', 'SUBCATEGORIA 1', 'Subcategoria1', 'SUBCAT_EGORIA_1'])),
-    subcategoria2: String(getVal(row, ['SUBCAT EGORIA 2', 'SUBCATEGORIA 2', 'Subcategoria2', 'SUBCAT_EGORIA_2'])),
-    subcategoria3: String(getVal(row, ['SUBCAT EGORIA 3', 'SUBCATEGORIA 3', 'Subcategoria3', 'SUBCAT_EGORIA_3'])),
-    bu: String(getVal(row, ['BU', 'Bu', 'bu'])),
-    segmento: String(getVal(row, ['Segmento', 'SEGMENTO', 'segmento'])),
-    pais: String(getVal(row, ['País', 'Pais', 'PAIS', 'PAÍS', 'pais'])),
-    uf: String(getVal(row, ['UF', 'uf', 'Uf'])),
-    mercado: String(getVal(row, ['Mercado', 'MERCADO', 'mercado'])),
-    codCliente: String(getVal(row, ['Cod Cliente', 'COD CLIENTE', 'CodCliente'])),
-    cliente: String(getVal(row, ['CLIENTE', 'Cliente', 'cliente'])),
-    grupoClientes: String(getVal(row, ['Grupo de Clientes', 'GRUPO DE CLIENTES', 'GrupoClientes', 'Grupo_de_Clientes'])),
-    quantidade: getNum(row, ['Quant.', 'QUANT.', 'Quant', 'Quantidade', 'QUANTIDADE', 'quantidade']),
-    receitaBrutaProdutos: getNum(row, ['Receita Bruta com Produtos', 'RECEITA BRUTA COM PRODUTOS']),
-    valorFrete: getNum(row, ['Valor Frete', 'VALOR FRETE', 'VlrFrete']),
-    valorSeguro: getNum(row, ['Vlr Seguro', 'VLR SEGURO', 'ValorSeguro']),
-    outrasDespesas: getNum(row, ['Outras Despesas', 'OUTRAS DESPESAS']),
-    valorDespesas: getNum(row, ['Vlr Despesas', 'VLR DESPESAS', 'ValorDespesas']),
-    receitaBrutaOutrasReceitas: getNum(row, ['Receita Bruta Outras Receitas', 'RECEITA BRUTA OUTRAS RECEITAS']),
-    receitaBrutaOperacional: getNum(row, ['Receita Bruta Operacional', 'RECEITA BRUTA OPERACIONAL']),
-    devolucao: getNum(row, ['(-)Devolução', '(-)Devoluçao', 'Devolução', 'DEVOLUÇÃO', 'Devolucao', '(-)DEVOLUÇÃO']),
-    impostosSemST: getNum(row, ['(-)Impostos S/ST', 'Impostos S/ST', 'IMPOSTOS S/ST', '(-)IMPOSTOS S/ST']),
-    icms: getNum(row, ['ICMS', 'icms', 'Icms']),
-    icmsST: getNum(row, ['ICMS ST', 'ICMS_ST', 'IcmsST']),
-  }));
+/**
+ * Mapeamento exato das colunas da planilha conforme especificação.
+ * Cada campo lista o nome principal da coluna + variações comuns.
+ */
+const COLUMN_MAP = {
+  base: ['Base'],
+  mes: ['Mês', 'Mes'],
+  codProduto: ['Cod Produto'],
+  descricaoProduto: ['Descricao Produto', 'Descrição Produto'],
+  familia: ['FAMILIA', 'Família', 'Familia'],
+  grupoProduto: ['GRUPO PRODUTO', 'Grupo Produto'],
+  subcategoria1: ['SUBCAT EGORIA 1', 'SUBCATEGORIA 1', 'SUBCATEGORIA1'],
+  subcategoria2: ['SUBCAT EGORIA 2', 'SUBCATEGORIA 2', 'SUBCATEGORIA2'],
+  subcategoria3: ['SUBCAT EGORIA 3', 'SUBCATEGORIA 3', 'SUBCATEGORIA3'],
+  bu: ['BU'],
+  segmento: ['Segmento'],
+  pais: ['País', 'Pais'],
+  uf: ['UF'],
+  mercado: ['Mercado'],
+  codCliente: ['Cod Cliente'],
+  cliente: ['CLIENTE', 'Cliente'],
+  grupoClientes: ['Grupo de Clientes'],
+  quantidade: ['Quant.', 'Quant', 'Quantidade'],
+  receitaBrutaProdutos: ['Receita Bruta com Produtos'],
+  valorFrete: ['Valor Frete'],
+  valorSeguro: ['Vlr Seguro', 'Valor Seguro'],
+  outrasDespesas: ['Outras Despesas'],
+  valorDespesas: ['Vlr Despesas', 'Valor Despesas'],
+  receitaBrutaOutrasReceitas: ['Receita Bruta Outras Receitas'],
+  receitaBrutaOperacional: ['Receita Bruta Operacional'],
+  devolucao: ['(-)Devolução', '(-)Devoluçao', '(-)Devolucao', 'Devolução', 'Devolucao'],
+  impostosSemST: ['(-)Impostos S/ST', 'Impostos S/ST'],
+  icms: ['ICMS'],
+  icmsST: ['ICMS ST'],
+} as const;
 
-  return { data, preview };
+const TEXT_FIELDS = new Set([
+  'base', 'codProduto', 'descricaoProduto', 'familia', 'grupoProduto',
+  'subcategoria1', 'subcategoria2', 'subcategoria3', 'bu', 'segmento',
+  'pais', 'uf', 'mercado', 'codCliente', 'cliente', 'grupoClientes',
+]);
+
+const NUM_FIELDS = new Set([
+  'mes', 'quantidade', 'receitaBrutaProdutos', 'valorFrete', 'valorSeguro',
+  'outrasDespesas', 'valorDespesas', 'receitaBrutaOutrasReceitas',
+  'receitaBrutaOperacional', 'devolucao', 'impostosSemST', 'icms', 'icmsST',
+]);
+
+export interface ParseResult {
+  data: RawDataRow[];
+  preview: Record<string, any>[];
+  unmappedColumns: string[];
+  sheetName: string;
+}
+
+export function parseExcelFile(buffer: ArrayBuffer): ParseResult {
+  const workbook = XLSX.read(buffer, { type: 'array' });
+
+  // Prioriza aba "Base de Dados", senão usa a primeira
+  const sheetName = workbook.SheetNames.find((n) => {
+    const nl = n.toLowerCase();
+    return nl.includes('base') && nl.includes('dado');
+  }) || workbook.SheetNames.find((n) => {
+    const nl = n.toLowerCase();
+    return nl.includes('base') || nl.includes('dado');
+  }) || workbook.SheetNames[0];
+
+  const sheet = workbook.Sheets[sheetName];
+  const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: '' }) as Record<string, any>[];
+
+  const preview = jsonData.slice(0, 5);
+
+  // Detecta colunas não mapeadas para debug
+  const allSheetCols = jsonData.length > 0 ? Object.keys(jsonData[0]) : [];
+  const allMappedNormalized = new Set(
+    Object.values(COLUMN_MAP).flatMap((candidates) => candidates.map(normalize))
+  );
+  const unmappedColumns = allSheetCols.filter(
+    (col) => !allMappedNormalized.has(normalize(col))
+  );
+
+  if (unmappedColumns.length > 0) {
+    console.warn('[OdontoBI] Colunas da planilha não mapeadas:', unmappedColumns);
+  }
+
+  const data: RawDataRow[] = jsonData.map((row) => {
+    const result: any = {};
+
+    for (const [field, candidates] of Object.entries(COLUMN_MAP)) {
+      if (TEXT_FIELDS.has(field)) {
+        const v = getVal(row, candidates as unknown as string[]);
+        result[field] = String(v).trim();
+      } else if (NUM_FIELDS.has(field)) {
+        result[field] = getNum(row, candidates as unknown as string[]);
+      }
+    }
+
+    // Garante que 'mes' é inteiro
+    result.mes = Math.round(result.mes) || 0;
+
+    return result as RawDataRow;
+  });
+
+  return { data, preview, unmappedColumns, sheetName };
 }
