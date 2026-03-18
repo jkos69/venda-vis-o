@@ -7,13 +7,6 @@ import { Upload } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { aggregate, filterByBase, deltaPercent, groupByNormalized, groupBy, getMesesComDadosReais, filtrarPelosMesesDoReal } from '@/lib/aggregations';
-import { formatCurrency, formatPct, getDeltaColorClass, formatQty } from '@/lib/format';
-import { GlobalFilters } from '@/components/GlobalFilters';
-import { Upload } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 export default function BUPage() {
   const data = useFilteredData();
