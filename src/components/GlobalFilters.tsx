@@ -1,19 +1,17 @@
-import { useStore } from '@/store/useStore';
+import { useStore, useUniqueValues } from '@/store/useStore';
 
 export function GlobalFilters() {
   const filters = useStore((s) => s.filters);
   const setFilter = useStore((s) => s.setFilter);
-  const uniqueValues = useStore((s) => s.uniqueValues);
   const data = useStore((s) => s.data);
 
+  const bus = useUniqueValues('bu');
+  const segmentos = useUniqueValues('segmento');
+  const familias = useUniqueValues('familia');
+  const paises = useUniqueValues('pais');
+  const ufs = useUniqueValues('uf');
+  const mercados = useUniqueValues('mercado');
   if (data.length === 0) return null;
-
-  const bus = uniqueValues('bu');
-  const segmentos = uniqueValues('segmento');
-  const familias = uniqueValues('familia');
-  const paises = uniqueValues('pais');
-  const ufs = uniqueValues('uf');
-  const mercados = uniqueValues('mercado');
 
   return (
     <div className="flex flex-wrap items-center gap-3">

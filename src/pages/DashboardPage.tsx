@@ -1,4 +1,4 @@
-import { useStore } from '@/store/useStore';
+import { useStore, useFilteredData } from '@/store/useStore';
 import { formatCurrency, formatPct, formatQty, getDeltaColorClass, formatDeltaCurrency } from '@/lib/format';
 import { aggregate, receitaLiquida, totalImpostos, deltaPercent, filterByBase } from '@/lib/aggregations';
 import { GlobalFilters } from '@/components/GlobalFilters';
@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { Upload } from 'lucide-react';
 
 export default function DashboardPage() {
-  const data = useStore((s) => s.filteredData());
+  const data = useFilteredData();
   const uploadMeta = useStore((s) => s.uploadMeta);
   const filters = useStore((s) => s.filters);
   const navigate = useNavigate();
