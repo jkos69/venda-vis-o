@@ -1,5 +1,5 @@
 import { useStore, useFilteredData } from '@/store/useStore';
-import { aggregate, filterByBase, deltaPercent, groupBy } from '@/lib/aggregations';
+import { aggregate, filterByBase, deltaPercent, groupBy, getMesesComDadosReais, filtrarPelosMesesDoReal } from '@/lib/aggregations';
 import { formatCurrency, formatPct, getDeltaColorClass, formatQty } from '@/lib/format';
 import { GlobalFilters } from '@/components/GlobalFilters';
 import { Upload } from 'lucide-react';
@@ -21,16 +21,17 @@ export default function GeografiaPage() {
     );
   }
 
+  const mesesDoReal = getMesesComDadosReais(data);
+
   const real26 = filterByBase(data, 'Real 26');
-  const comp = filterByBase(data, filters.baseComparacao === 'orcamento' ? 'Orç 26' : 'Real 25');
+  const compRaw = filterByBase(data, filters.baseComparacao === 'orcamento' ? 'Orç 26' : 'Real 25');
+  const comp = filtrarPelosMesesDoReal(compRaw, mesesDoReal);
   const compLabel = filters.baseComparacao === 'orcamento' ? 'Orç 26' : 'Real 25';
 
-  // Group by País > UF
   const paisReal = groupBy(real26, (r) => r.pais);
   const paisComp = groupBy(comp, (r) => r.pais);
   const paises = [...new Set([...Object.keys(paisReal), ...Object.keys(paisComp)])].filter(Boolean).sort();
 
-  // Separate internal vs export
   const mercReal = groupBy(real26, (r) => r.mercado);
   const mercComp = groupBy(comp, (r) => r.mercado);
   const mercados = [...new Set([...Object.keys(mercReal), ...Object.keys(mercComp)])].filter(Boolean).sort();
@@ -40,7 +41,6 @@ export default function GeografiaPage() {
       <h1 className="text-xl font-semibold text-foreground tracking-tight">Visão por Geografia</h1>
       <GlobalFilters />
 
-      {/* By Mercado */}
       <div className="rounded-xl bg-surface shadow-layered overflow-hidden">
         <div className="px-5 py-3 border-b border-border">
           <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Por Mercado</h2>
@@ -76,7 +76,6 @@ export default function GeografiaPage() {
         </div>
       </div>
 
-      {/* By País / UF */}
       <div className="rounded-xl bg-surface shadow-layered overflow-hidden">
         <div className="px-5 py-3 border-b border-border">
           <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Por País / UF</h2>

@@ -1,10 +1,12 @@
 import { useStore, useFilteredData } from '@/store/useStore';
 import { formatCurrency, formatPct, formatPctDirect, formatQty, getDeltaColorClass, formatDeltaCurrency } from '@/lib/format';
-import { aggregate, receitaLiquida, receitaLiquidaProdutos, totalImpostos, deltaPercent, filterByBase } from '@/lib/aggregations';
+import { aggregate, receitaLiquida, receitaLiquidaProdutos, totalImpostos, deltaPercent, filterByBase, getMesesComDadosReais, filtrarPelosMesesDoReal } from '@/lib/aggregations';
 import { GlobalFilters } from '@/components/GlobalFilters';
 import { KPICard } from '@/components/KPICard';
 import { useNavigate } from 'react-router-dom';
 import { Upload } from 'lucide-react';
+
+const MESES = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
 function formatCell(value: number, format: 'qty' | 'currency' | 'pctDirect'): string {
   if (format === 'qty') return formatQty(value);
@@ -33,9 +35,30 @@ export default function DashboardPage() {
     );
   }
 
-  const real26 = aggregate(filterByBase(data, 'Real 26'));
-  const orc26 = aggregate(filterByBase(data, 'Orç 26'));
-  const real25 = aggregate(filterByBase(data, 'Real 25'));
+  // 1. Separa por base
+  const allReal26 = filterByBase(data, 'Real 26');
+  const allOrc26 = filterByBase(data, 'Orç 26');
+  const allReal25 = filterByBase(data, 'Real 25');
+
+  // 2. Descobre meses com dados reais
+  const mesesDoReal = getMesesComDadosReais(data);
+
+  // 3. Filtra comparativos pelos mesmos meses do Real 26
+  const orc26Comparavel = filtrarPelosMesesDoReal(allOrc26, mesesDoReal);
+  const real25Comparavel = filtrarPelosMesesDoReal(allReal25, mesesDoReal);
+
+  // 4. Agrega
+  const real26 = aggregate(allReal26);
+  const orc26 = aggregate(orc26Comparavel);
+  const real25 = aggregate(real25Comparavel);
+
+  // Período label
+  const mesesOrdenados = Array.from(mesesDoReal).sort((a, b) => a - b);
+  const periodoLabel = mesesDoReal.size === 0
+    ? 'Acumulado'
+    : mesesDoReal.size === 1
+      ? `${MESES[mesesOrdenados[0]]}/26`
+      : `${MESES[mesesOrdenados[0]]}/26 a ${MESES[mesesOrdenados[mesesOrdenados.length - 1]]}/26`;
 
   const compBase = filters.baseComparacao === 'orcamento' ? orc26 : real25;
   const compLabel = filters.baseComparacao === 'orcamento' ? 'Orç 26' : 'Real 25';
@@ -47,8 +70,6 @@ export default function DashboardPage() {
   const rlpComp = receitaLiquidaProdutos(compBase);
   const rlpR25 = receitaLiquidaProdutos(real25);
 
-  // Margem Bruta = Receita Líquida (sem CPV por ora, CPV não consta na base)
-  // CPV não está disponível na planilha, exibimos como 0
   const cpvReal = 0;
   const cpvComp = 0;
   const cpvR25 = 0;
@@ -65,123 +86,26 @@ export default function DashboardPage() {
   const mbPctComp = compBase.receitaBrutaOperacional !== 0 ? mbComp / compBase.receitaBrutaOperacional : 0;
   const mbPctR25 = real25.receitaBrutaOperacional !== 0 ? mbR25 / real25.receitaBrutaOperacional : 0;
 
-  // P&L Rows — ordem exata conforme especificação
   const plRows = [
-    {
-      label: 'Quantidade',
-      real: real26.quantidade,
-      comp: compBase.quantidade,
-      real25v: real25.quantidade,
-      format: 'qty' as const,
-      invert: false,
-      isBold: false,
-    },
-    {
-      label: 'Receita Bruta Operacional',
-      real: real26.receitaBrutaOperacional,
-      comp: compBase.receitaBrutaOperacional,
-      real25v: real25.receitaBrutaOperacional,
-      format: 'currency' as const,
-      invert: false,
-      isBold: true,
-    },
-    {
-      label: '    Receita Bruta com Produtos',
-      real: real26.receitaBrutaProdutos,
-      comp: compBase.receitaBrutaProdutos,
-      real25v: real25.receitaBrutaProdutos,
-      format: 'currency' as const,
-      invert: false,
-      isBold: false,
-    },
-    {
-      label: '    Outras Receitas',
-      real: real26.receitaBrutaOutrasReceitas,
-      comp: compBase.receitaBrutaOutrasReceitas,
-      real25v: real25.receitaBrutaOutrasReceitas,
-      format: 'currency' as const,
-      invert: false,
-      isBold: false,
-    },
-    {
-      label: '(-) Devoluções de Vendas',
-      real: -Math.abs(real26.devolucao),
-      comp: -Math.abs(compBase.devolucao),
-      real25v: -Math.abs(real25.devolucao),
-      format: 'currency' as const,
-      invert: true,
-      isBold: false,
-    },
-    {
-      label: '(-) Impostos',
-      real: -totalImpostos(real26),
-      comp: -totalImpostos(compBase),
-      real25v: -totalImpostos(real25),
-      format: 'currency' as const,
-      invert: true,
-      isBold: false,
-    },
-    {
-      label: 'Receita Líquida com Produtos',
-      real: rlpReal,
-      comp: rlpComp,
-      real25v: rlpR25,
-      format: 'currency' as const,
-      invert: false,
-      isBold: true,
-    },
-    {
-      label: 'Receita Operacional Líquida',
-      real: rlReal,
-      comp: rlComp,
-      real25v: receitaLiquida(real25),
-      format: 'currency' as const,
-      invert: false,
-      isBold: true,
-    },
-    {
-      label: '(-) Custo do Produto Vendido',
-      real: -Math.abs(cpvReal),
-      comp: -Math.abs(cpvComp),
-      real25v: -Math.abs(cpvR25),
-      format: 'currency' as const,
-      invert: true,
-      isBold: false,
-    },
-    {
-      label: 'CPV/ROB %',
-      real: cpvRobReal,
-      comp: cpvRobComp,
-      real25v: cpvRobR25,
-      format: 'pctDirect' as const,
-      invert: true,
-      isBold: false,
-    },
-    {
-      label: 'Margem Bruta',
-      real: mbReal,
-      comp: mbComp,
-      real25v: mbR25,
-      format: 'currency' as const,
-      invert: false,
-      isBold: true,
-    },
-    {
-      label: 'Margem Bruta %',
-      real: mbPctReal,
-      comp: mbPctComp,
-      real25v: mbPctR25,
-      format: 'pctDirect' as const,
-      invert: false,
-      isBold: false,
-    },
+    { label: 'Quantidade', real: real26.quantidade, comp: compBase.quantidade, real25v: real25.quantidade, format: 'qty' as const, invert: false, isBold: false },
+    { label: 'Receita Bruta Operacional', real: real26.receitaBrutaOperacional, comp: compBase.receitaBrutaOperacional, real25v: real25.receitaBrutaOperacional, format: 'currency' as const, invert: false, isBold: true },
+    { label: '    Receita Bruta com Produtos', real: real26.receitaBrutaProdutos, comp: compBase.receitaBrutaProdutos, real25v: real25.receitaBrutaProdutos, format: 'currency' as const, invert: false, isBold: false },
+    { label: '    Outras Receitas', real: real26.receitaBrutaOutrasReceitas, comp: compBase.receitaBrutaOutrasReceitas, real25v: real25.receitaBrutaOutrasReceitas, format: 'currency' as const, invert: false, isBold: false },
+    { label: '(-) Devoluções de Vendas', real: -Math.abs(real26.devolucao), comp: -Math.abs(compBase.devolucao), real25v: -Math.abs(real25.devolucao), format: 'currency' as const, invert: true, isBold: false },
+    { label: '(-) Impostos', real: -totalImpostos(real26), comp: -totalImpostos(compBase), real25v: -totalImpostos(real25), format: 'currency' as const, invert: true, isBold: false },
+    { label: 'Receita Líquida com Produtos', real: rlpReal, comp: rlpComp, real25v: rlpR25, format: 'currency' as const, invert: false, isBold: true },
+    { label: 'Receita Operacional Líquida', real: rlReal, comp: rlComp, real25v: receitaLiquida(real25), format: 'currency' as const, invert: false, isBold: true },
+    { label: '(-) Custo do Produto Vendido', real: -Math.abs(cpvReal), comp: -Math.abs(cpvComp), real25v: -Math.abs(cpvR25), format: 'currency' as const, invert: true, isBold: false },
+    { label: 'CPV/ROB %', real: cpvRobReal, comp: cpvRobComp, real25v: cpvRobR25, format: 'pctDirect' as const, invert: true, isBold: false },
+    { label: 'Margem Bruta', real: mbReal, comp: mbComp, real25v: mbR25, format: 'currency' as const, invert: false, isBold: true },
+    { label: 'Margem Bruta %', real: mbPctReal, comp: mbPctComp, real25v: mbPctR25, format: 'pctDirect' as const, invert: false, isBold: false },
   ];
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-foreground tracking-tight">
-          Performance Comercial — Consolidado 2026
+          Performance Comercial — {periodoLabel}
         </h1>
       </div>
 
@@ -189,37 +113,10 @@ export default function DashboardPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <KPICard
-          title="Receita Bruta Operacional"
-          value={formatCurrency(real26.receitaBrutaOperacional)}
-          compValue={formatCurrency(compBase.receitaBrutaOperacional)}
-          compLabel={compLabel}
-          delta={deltaPercent(real26.receitaBrutaOperacional, compBase.receitaBrutaOperacional)}
-          deltaR={real26.receitaBrutaOperacional - compBase.receitaBrutaOperacional}
-        />
-        <KPICard
-          title="Quantidade"
-          value={formatQty(real26.quantidade)}
-          compValue={formatQty(compBase.quantidade)}
-          compLabel={compLabel}
-          delta={deltaPercent(real26.quantidade, compBase.quantidade)}
-        />
-        <KPICard
-          title="Receita Líquida"
-          value={formatCurrency(rlReal)}
-          compValue={formatCurrency(rlComp)}
-          compLabel={compLabel}
-          delta={deltaPercent(rlReal, rlComp)}
-          deltaR={rlReal - rlComp}
-        />
-        <KPICard
-          title="Devoluções"
-          value={formatCurrency(Math.abs(real26.devolucao))}
-          compValue={formatCurrency(Math.abs(compBase.devolucao))}
-          compLabel={compLabel}
-          delta={deltaPercent(Math.abs(real26.devolucao), Math.abs(compBase.devolucao))}
-          invert
-        />
+        <KPICard title="Receita Bruta Operacional" value={formatCurrency(real26.receitaBrutaOperacional)} compValue={formatCurrency(compBase.receitaBrutaOperacional)} compLabel={compLabel} delta={deltaPercent(real26.receitaBrutaOperacional, compBase.receitaBrutaOperacional)} deltaR={real26.receitaBrutaOperacional - compBase.receitaBrutaOperacional} />
+        <KPICard title="Quantidade" value={formatQty(real26.quantidade)} compValue={formatQty(compBase.quantidade)} compLabel={compLabel} delta={deltaPercent(real26.quantidade, compBase.quantidade)} />
+        <KPICard title="Receita Líquida" value={formatCurrency(rlReal)} compValue={formatCurrency(rlComp)} compLabel={compLabel} delta={deltaPercent(rlReal, rlComp)} deltaR={rlReal - rlComp} />
+        <KPICard title="Devoluções" value={formatCurrency(Math.abs(real26.devolucao))} compValue={formatCurrency(Math.abs(compBase.devolucao))} compLabel={compLabel} delta={deltaPercent(Math.abs(real26.devolucao), Math.abs(compBase.devolucao))} invert />
       </div>
 
       {/* P&L Table */}
@@ -286,6 +183,11 @@ export default function DashboardPage() {
               })}
             </tbody>
           </table>
+        </div>
+        <div className="px-5 py-3 border-t border-border/30">
+          <p className="text-[11px] text-muted-foreground/70">
+            * Comparativos {compLabel} e {filters.baseComparacao === 'orcamento' ? 'Real 25' : ''} consideram apenas os meses com dados realizados ({periodoLabel}), garantindo consistência na análise de desvios.
+          </p>
         </div>
       </div>
     </div>
