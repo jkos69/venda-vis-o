@@ -1,5 +1,5 @@
 import { useStore, useFilteredData } from '@/store/useStore';
-import { aggregate, filterByBase, deltaPercent, groupBy, getMesesComDadosReais, filtrarPelosMesesDoReal } from '@/lib/aggregations';
+import { aggregate, filterByBase, deltaPercent, groupByNormalized, groupBy, getMesesComDadosReais, filtrarPelosMesesDoReal } from '@/lib/aggregations';
 import { formatCurrency, formatPct, getDeltaColorClass, formatQty } from '@/lib/format';
 import { GlobalFilters } from '@/components/GlobalFilters';
 import { Upload } from 'lucide-react';
@@ -33,16 +33,21 @@ export default function BUPage() {
   const comp = filtrarPelosMesesDoReal(compRaw, mesesDoReal);
   const compLabel = filters.baseComparacao === 'orcamento' ? 'Orç 26' : 'Real 25';
 
-  const buGroupsReal = groupBy(real26, (r) => r.bu);
-  const buGroupsComp = groupBy(comp, (r) => r.bu);
+  // Use normalized grouping to merge case variants
+  const buGroupsReal = groupByNormalized(real26, (r) => r.bu);
+  const buGroupsComp = groupByNormalized(comp, (r) => r.bu);
 
-  const allBUs = [...new Set([...Object.keys(buGroupsReal), ...Object.keys(buGroupsComp)])].filter(Boolean).sort();
+  const allNormKeys = [...new Set([...Object.keys(buGroupsReal), ...Object.keys(buGroupsComp)])].filter(Boolean).sort();
 
-  const tableData = allBUs.map((bu) => {
-    const rAgg = aggregate(buGroupsReal[bu] || []);
-    const cAgg = aggregate(buGroupsComp[bu] || []);
+  const tableData = allNormKeys.map((normKey) => {
+    const realEntry = buGroupsReal[normKey];
+    const compEntry = buGroupsComp[normKey];
+    const rAgg = aggregate(realEntry?.items || []);
+    const cAgg = aggregate(compEntry?.items || []);
+    const label = realEntry?.label || compEntry?.label || normKey;
     return {
-      bu,
+      normKey,
+      bu: label,
       realROB: rAgg.receitaBrutaOperacional,
       compROB: cAgg.receitaBrutaOperacional,
       delta: deltaPercent(rAgg.receitaBrutaOperacional, cAgg.receitaBrutaOperacional),
@@ -98,9 +103,9 @@ export default function BUPage() {
               {tableData.map((row) => (
                 <>
                   <tr
-                    key={row.bu}
+                    key={row.normKey}
                     className="border-b border-border/30 hover:bg-accent/20 transition-colors duration-150 cursor-pointer"
-                    onClick={() => setExpandedBU(expandedBU === row.bu ? null : row.bu)}
+                    onClick={() => setExpandedBU(expandedBU === row.normKey ? null : row.normKey)}
                   >
                     <td className="px-5 py-2.5 font-medium text-foreground">{row.bu}</td>
                     <td className="text-right px-4 py-2.5 tabular-nums font-medium text-foreground">{formatCurrency(row.realROB)}</td>
@@ -109,8 +114,8 @@ export default function BUPage() {
                     <td className="text-right px-4 py-2.5 tabular-nums text-foreground">{formatQty(row.realQty)}</td>
                     <td className={`text-right px-4 py-2.5 tabular-nums font-medium ${getDeltaColorClass(row.deltaQty)}`}>{formatPct(row.deltaQty)}</td>
                   </tr>
-                  {expandedBU === row.bu && (
-                    <DrillDown bu={row.bu} data={data} filters={filters} compLabel={compLabel} mesesDoReal={mesesDoReal} />
+                  {expandedBU === row.normKey && (
+                    <DrillDown normKey={row.normKey} data={data} filters={filters} compLabel={compLabel} mesesDoReal={mesesDoReal} />
                   )}
                 </>
               ))}
@@ -122,18 +127,19 @@ export default function BUPage() {
   );
 }
 
-function DrillDown({ bu, data, filters, compLabel, mesesDoReal }: { bu: string; data: any[]; filters: any; compLabel: string; mesesDoReal: Set<number> }) {
-  const buData = data.filter((r) => r.bu === bu);
+function DrillDown({ normKey, data, filters, compLabel, mesesDoReal }: { normKey: string; data: any[]; filters: any; compLabel: string; mesesDoReal: Set<number> }) {
+  // Filter by normalized BU key
+  const buData = data.filter((r) => (r.bu || '').trim().toUpperCase() === normKey);
   const real26 = filterByBase(buData, 'Real 26');
   const compRaw = filterByBase(buData, filters.baseComparacao === 'orcamento' ? 'Orç 26' : 'Real 25');
   const comp = filtrarPelosMesesDoReal(compRaw, mesesDoReal);
 
-  const gpReal = groupBy(real26, (r) => r.grupoProduto);
-  const gpComp = groupBy(comp, (r) => r.grupoProduto);
+  const gpReal = groupByNormalized(real26, (r) => r.grupoProduto);
+  const gpComp = groupByNormalized(comp, (r) => r.grupoProduto);
   const groups = [...new Set([...Object.keys(gpReal), ...Object.keys(gpComp)])].filter(Boolean).sort();
 
   return (
-    <tr key={`${bu}-drill`}>
+    <tr key={`${normKey}-drill`}>
       <td colSpan={6} className="px-8 py-3 bg-accent/10">
         <table className="w-full text-xs">
           <thead>
@@ -145,13 +151,14 @@ function DrillDown({ bu, data, filters, compLabel, mesesDoReal }: { bu: string; 
             </tr>
           </thead>
           <tbody>
-            {groups.map((gp) => {
-              const rAgg = aggregate(gpReal[gp] || []);
-              const cAgg = aggregate(gpComp[gp] || []);
+            {groups.map((gpKey) => {
+              const rAgg = aggregate(gpReal[gpKey]?.items || []);
+              const cAgg = aggregate(gpComp[gpKey]?.items || []);
               const dp = deltaPercent(rAgg.receitaBrutaOperacional, cAgg.receitaBrutaOperacional);
+              const label = gpReal[gpKey]?.label || gpComp[gpKey]?.label || gpKey;
               return (
-                <tr key={gp} className="border-b border-border/20">
-                  <td className="py-1.5 text-muted-foreground">{gp}</td>
+                <tr key={gpKey} className="border-b border-border/20">
+                  <td className="py-1.5 text-muted-foreground">{label}</td>
                   <td className="text-right py-1.5 tabular-nums text-foreground">{formatCurrency(rAgg.receitaBrutaOperacional)}</td>
                   <td className="text-right py-1.5 tabular-nums text-muted-foreground">{formatCurrency(cAgg.receitaBrutaOperacional)}</td>
                   <td className={`text-right py-1.5 tabular-nums font-medium ${getDeltaColorClass(dp)}`}>{formatPct(dp)}</td>
