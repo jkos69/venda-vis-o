@@ -254,21 +254,21 @@ export default function DashboardPage() {
                       {row.label}
                     </td>
                     <td className="text-right px-4 py-2.5 tabular-nums font-medium text-foreground">
-                      {row.format === 'qty' ? formatQty(row.real) : formatCurrency(row.real)}
+                      {formatCell(row.real, row.format)}
                     </td>
                     <td className="text-right px-4 py-2.5 tabular-nums text-muted-foreground">
-                      {row.format === 'qty' ? formatQty(row.comp) : formatCurrency(row.comp)}
+                      {formatCell(row.comp, row.format)}
                     </td>
                     <td className={`text-right px-4 py-2.5 tabular-nums font-medium ${getDeltaColorClass(dp, row.invert)}`}>
                       {formatPct(dp)}
                     </td>
                     <td className={`text-right px-4 py-2.5 tabular-nums ${getDeltaColorClass(dr, row.invert)}`}>
-                      {row.format === 'qty' ? formatQty(dr) : formatDeltaCurrency(dr)}
+                      {row.format === 'qty' ? formatQty(dr) : row.format === 'pctDirect' ? formatPctDirect(dr) : formatDeltaCurrency(dr)}
                     </td>
                     {filters.baseComparacao === 'orcamento' && (
                       <>
                         <td className="text-right px-4 py-2.5 tabular-nums text-muted-foreground">
-                          {row.format === 'qty' ? formatQty(row.real25v) : formatCurrency(row.real25v)}
+                          {formatCell(row.real25v, row.format)}
                         </td>
                         <td className={`text-right px-4 py-2.5 tabular-nums font-medium ${getDeltaColorClass(dpAA, row.invert)}`}>
                           {formatPct(dpAA)}
