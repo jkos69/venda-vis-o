@@ -145,6 +145,12 @@ export function parseExcelFile(buffer: ArrayBuffer): ParseResult {
     console.warn('[OdontoBI] Colunas da planilha não mapeadas:', unmappedColumns);
   }
 
+  const TITLE_CASE_FIELDS = new Set([
+    'bu', 'segmento', 'familia', 'grupoProduto',
+    'subcategoria1', 'subcategoria2', 'subcategoria3',
+    'mercado', 'grupoClientes', 'cliente', 'descricaoProduto',
+  ]);
+
   const data: RawDataRow[] = jsonData.map((row) => {
     const result: any = {};
 
@@ -158,6 +164,18 @@ export function parseExcelFile(buffer: ArrayBuffer): ParseResult {
     }
 
     result.mes = Math.round(result.mes) || 0;
+
+    // Normalize categorical text fields to Title Case
+    for (const field of TITLE_CASE_FIELDS) {
+      if (result[field] && typeof result[field] === 'string' && result[field].trim()) {
+        result[field] = toTitleCase(result[field].trim());
+      }
+    }
+    // UF stays uppercase
+    if (result.uf) result.uf = String(result.uf).trim().toUpperCase();
+    // Base and pais keep original casing
+    if (result.base) result.base = String(result.base).trim();
+    if (result.pais) result.pais = String(result.pais).trim();
 
     return result as RawDataRow;
   });
