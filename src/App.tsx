@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppLayout } from "@/components/AppLayout";
+import { ThemeInit } from "@/components/ThemeInit";
 import DashboardPage from "./pages/DashboardPage";
 import BUPage from "./pages/BUPage";
 import CanalPage from "./pages/CanalPage";
@@ -19,6 +20,7 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
+      <ThemeInit />
       <Toaster />
       <Sonner />
       <BrowserRouter>

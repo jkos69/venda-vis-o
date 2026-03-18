@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type { RawDataRow, FilterState, UploadMeta } from '@/types/data';
 
 interface AppState {
@@ -6,6 +7,7 @@ interface AppState {
   uploadMeta: UploadMeta | null;
   filters: FilterState;
   setData: (data: RawDataRow[], meta: UploadMeta) => void;
+  clearData: () => void;
   setFilter: <K extends keyof FilterState>(key: K, value: FilterState[K]) => void;
   resetFilters: () => void;
 }
@@ -21,20 +23,30 @@ const defaultFilters: FilterState = {
   mercados: [],
 };
 
-export const useStore = create<AppState>((set) => ({
-  data: [],
-  uploadMeta: null,
-  filters: { ...defaultFilters },
+export const useStore = create<AppState>()(
+  persist(
+    (set) => ({
+      data: [],
+      uploadMeta: null,
+      filters: { ...defaultFilters },
 
-  setData: (data, meta) => set({ data, uploadMeta: meta }),
+      setData: (data, meta) => set({ data, uploadMeta: meta }),
 
-  setFilter: (key, value) =>
-    set((state) => ({ filters: { ...state.filters, [key]: value } })),
+      clearData: () => set({ data: [], uploadMeta: null, filters: { ...defaultFilters } }),
 
-  resetFilters: () => set({ filters: { ...defaultFilters } }),
-}));
+      setFilter: (key, value) =>
+        set((state) => ({ filters: { ...state.filters, [key]: value } })),
 
-// Derived selectors — call these as hooks, they compute outside the store
+      resetFilters: () => set({ filters: { ...defaultFilters } }),
+    }),
+    {
+      name: 'odontubi-storage',
+      partialize: (state) => ({ data: state.data, uploadMeta: state.uploadMeta }),
+    }
+  )
+);
+
+// Derived selectors
 export function useFilteredData(): RawDataRow[] {
   const data = useStore((s) => s.data);
   const filters = useStore((s) => s.filters);

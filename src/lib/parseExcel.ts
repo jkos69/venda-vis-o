@@ -14,16 +14,10 @@ function normalize(s: string): string {
     .trim();
 }
 
-/**
- * Busca um valor na row tentando match exato primeiro,
- * depois por nome normalizado.
- */
 function getVal(row: Record<string, any>, candidates: string[]): any {
-  // 1) Exact match
   for (const c of candidates) {
     if (row[c] !== undefined && row[c] !== null) return row[c];
   }
-  // 2) Normalized match against all row keys
   const normalizedCandidates = candidates.map(normalize);
   for (const key of Object.keys(row)) {
     const nk = normalize(key);
@@ -38,7 +32,6 @@ function getNum(row: Record<string, any>, candidates: string[]): number {
   const v = getVal(row, candidates);
   if (typeof v === 'number') return v;
   if (typeof v === 'string') {
-    // Handle Brazilian number format: 1.234.567,89
     const cleaned = v.replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
     const n = parseFloat(cleaned);
     return isNaN(n) ? 0 : n;
@@ -46,10 +39,6 @@ function getNum(row: Record<string, any>, candidates: string[]): number {
   return 0;
 }
 
-/**
- * Mapeamento exato das colunas da planilha conforme especificação.
- * Cada campo lista o nome principal da coluna + variações comuns.
- */
 const COLUMN_MAP = {
   base: ['Base'],
   mes: ['Mês', 'Mes'],
@@ -104,7 +93,6 @@ export interface ParseResult {
 export function parseExcelFile(buffer: ArrayBuffer): ParseResult {
   const workbook = XLSX.read(buffer, { type: 'array' });
 
-  // Prioriza aba "Base de Dados", senão usa a primeira
   const sheetName = workbook.SheetNames.find((n) => {
     const nl = n.toLowerCase();
     return nl.includes('base') && nl.includes('dado');
@@ -114,11 +102,37 @@ export function parseExcelFile(buffer: ArrayBuffer): ParseResult {
   }) || workbook.SheetNames[0];
 
   const sheet = workbook.Sheets[sheetName];
-  const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: '' }) as Record<string, any>[];
+
+  // A planilha pode ter linhas de cabeçalho extras antes dos dados reais.
+  // Estratégia: converter com header:1 (array de arrays) e achar a linha
+  // que contém os cabeçalhos verdadeiros ("Base" e "Mês").
+  const rawRows = XLSX.utils.sheet_to_json<string[]>(sheet, {
+    header: 1,
+    defval: '',
+  }) as string[][];
+
+  const headerRowIdx = rawRows.findIndex((row) => {
+    const normalized = row.map((c) => normalize(String(c)));
+    return normalized.includes('base') && normalized.some((c) => c === 'mes');
+  });
+
+  const actualHeaderIdx = headerRowIdx >= 0 ? headerRowIdx : 0;
+  const headerRow = rawRows[actualHeaderIdx].map(String);
+  const dataRows = rawRows.slice(actualHeaderIdx + 1).filter((row) =>
+    row.some((cell) => cell !== '' && cell !== null && cell !== undefined)
+  );
+
+  // Monta objetos com os cabeçalhos corretos
+  const jsonData: Record<string, any>[] = dataRows.map((row) => {
+    const obj: Record<string, any> = {};
+    headerRow.forEach((col, i) => {
+      if (col) obj[col] = row[i] ?? '';
+    });
+    return obj;
+  });
 
   const preview = jsonData.slice(0, 5);
 
-  // Detecta colunas não mapeadas para debug
   const allSheetCols = jsonData.length > 0 ? Object.keys(jsonData[0]) : [];
   const allMappedNormalized = new Set(
     Object.values(COLUMN_MAP).flatMap((candidates) => candidates.map(normalize))
@@ -143,7 +157,6 @@ export function parseExcelFile(buffer: ArrayBuffer): ParseResult {
       }
     }
 
-    // Garante que 'mes' é inteiro
     result.mes = Math.round(result.mes) || 0;
 
     return result as RawDataRow;
