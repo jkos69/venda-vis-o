@@ -16,28 +16,37 @@ export type Database = {
     Tables: {
       uploads: {
         Row: {
-          created_at: string
+          chunk_index: number
           data: Json
           filename: string
           id: string
           row_count: number
+          session_id: string
           sheet_name: string | null
+          total_chunks: number
+          uploaded_at: string
         }
         Insert: {
-          created_at?: string
+          chunk_index: number
           data: Json
           filename: string
           id?: string
           row_count: number
+          session_id: string
           sheet_name?: string | null
+          total_chunks: number
+          uploaded_at?: string
         }
         Update: {
-          created_at?: string
+          chunk_index?: number
           data?: Json
           filename?: string
           id?: string
           row_count?: number
+          session_id?: string
           sheet_name?: string | null
+          total_chunks?: number
+          uploaded_at?: string
         }
         Relationships: []
       }
