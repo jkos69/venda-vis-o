@@ -1,13 +1,14 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import type { RawDataRow, FilterState, UploadMeta } from '@/types/data';
 
 interface AppState {
   data: RawDataRow[];
   uploadMeta: UploadMeta | null;
+  isLoading: boolean;
   filters: FilterState;
   setData: (data: RawDataRow[], meta: UploadMeta) => void;
   clearData: () => void;
+  setLoading: (v: boolean) => void;
   setFilter: <K extends keyof FilterState>(key: K, value: FilterState[K]) => void;
   resetFilters: () => void;
 }
@@ -23,28 +24,23 @@ const defaultFilters: FilterState = {
   mercados: [],
 };
 
-export const useStore = create<AppState>()(
-  persist(
-    (set) => ({
-      data: [],
-      uploadMeta: null,
-      filters: { ...defaultFilters },
+export const useStore = create<AppState>((set) => ({
+  data: [],
+  uploadMeta: null,
+  isLoading: false,
+  filters: { ...defaultFilters },
 
-      setData: (data, meta) => set({ data, uploadMeta: meta }),
+  setData: (data, meta) => set({ data, uploadMeta: meta }),
 
-      clearData: () => set({ data: [], uploadMeta: null, filters: { ...defaultFilters } }),
+  clearData: () => set({ data: [], uploadMeta: null, filters: { ...defaultFilters } }),
 
-      setFilter: (key, value) =>
-        set((state) => ({ filters: { ...state.filters, [key]: value } })),
+  setLoading: (isLoading) => set({ isLoading }),
 
-      resetFilters: () => set({ filters: { ...defaultFilters } }),
-    }),
-    {
-      name: 'odontubi-storage',
-      partialize: (state) => ({ data: state.data, uploadMeta: state.uploadMeta }),
-    }
-  )
-);
+  setFilter: (key, value) =>
+    set((state) => ({ filters: { ...state.filters, [key]: value } })),
+
+  resetFilters: () => set({ filters: { ...defaultFilters } }),
+}));
 
 // Derived selectors
 export function useFilteredData(): RawDataRow[] {
