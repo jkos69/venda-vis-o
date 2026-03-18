@@ -82,7 +82,7 @@ export default function CanalPage() {
             <BarChart data={barData} margin={{ left: 10, right: 10 }}>
               <XAxis dataKey="name" stroke="hsl(215,15%,65%)" fontSize={9} angle={-30} textAnchor="end" height={60} />
               <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} stroke="hsl(215,15%,65%)" fontSize={10} />
-              <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={{ backgroundColor: 'hsl(222,24%,7%)', border: '1px solid hsl(217,19%,14%)', borderRadius: 8, fontSize: 12 }} />
+              <Tooltip content={<ChartTooltip />} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               <Bar dataKey="real" name="Real 26" fill="hsl(210,100%,56%)" radius={[4, 4, 0, 0]} />
               <Bar dataKey="comp" name={compLabel} fill="hsl(215,15%,35%)" radius={[4, 4, 0, 0]} />
