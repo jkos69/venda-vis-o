@@ -109,8 +109,13 @@ export default function UploadPage() {
               <div>
                 <p className="text-sm font-medium text-foreground">{fileName}</p>
                 <p className="text-xs text-muted-foreground">
-                  {rowCount.toLocaleString('pt-BR')} linhas carregadas com sucesso
+                  {rowCount.toLocaleString('pt-BR')} linhas carregadas da aba "{sheetInfo?.sheetName}"
                 </p>
+                {sheetInfo && sheetInfo.unmapped.length > 0 && (
+                  <p className="text-[10px] text-muted-foreground/50 mt-0.5">
+                    Colunas ignoradas: {sheetInfo.unmapped.join(', ')}
+                  </p>
+                )}
               </div>
             </div>
             <button
