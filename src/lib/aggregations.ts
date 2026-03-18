@@ -78,3 +78,24 @@ export function groupBy<T>(arr: T[], keyFn: (item: T) => string): Record<string,
   }
   return result;
 }
+
+/**
+ * Retorna o conjunto de meses que têm dados reais (base contendo 'real' e '26').
+ */
+export function getMesesComDadosReais(data: RawDataRow[]): Set<number> {
+  const real26 = data.filter(r =>
+    r.base.toLowerCase().includes('real') && r.base.includes('26')
+  );
+  return new Set(real26.map(r => r.mes).filter(m => m > 0));
+}
+
+/**
+ * Filtra dados para incluir APENAS os meses que existem no Real 26.
+ */
+export function filtrarPelosMesesDoReal(
+  data: RawDataRow[],
+  mesesDoReal: Set<number>
+): RawDataRow[] {
+  if (mesesDoReal.size === 0) return data;
+  return data.filter(r => mesesDoReal.has(r.mes));
+}
