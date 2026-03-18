@@ -1,9 +1,11 @@
-import { useCallback, useState, useEffect } from 'react';
-import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Trash2 } from 'lucide-react';
+import { useCallback, useState } from 'react';
+import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Trash2, Loader2 } from 'lucide-react';
 import { parseExcelFile } from '@/lib/parseExcel';
 import { useStore } from '@/store/useStore';
+import { saveUploadToSupabase, clearSupabaseUploads } from '@/hooks/useSupabaseData';
 import { useNavigate } from 'react-router-dom';
 import { Progress } from '@/components/ui/progress';
+import { toast } from 'sonner';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,6 +17,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import type { UploadMeta } from '@/types/data';
 
 export default function UploadPage() {
   const [dragOver, setDragOver] = useState(false);
@@ -22,6 +25,7 @@ export default function UploadPage() {
   const [rowCount, setRowCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [progress, setProgress] = useState(0);
   const [fileName, setFileName] = useState('');
   const [sheetInfo, setSheetInfo] = useState<{ sheetName: string; unmapped: string[] } | null>(null);
@@ -36,32 +40,54 @@ export default function UploadPage() {
     setProgress(0);
     setFileName(file.name);
 
-    // Simulated progress bar
     const interval = setInterval(() => {
-      setProgress((p) => Math.min(p + Math.random() * 20, 85));
+      setProgress((p) => Math.min(p + Math.random() * 15, 40));
     }, 150);
 
     try {
       const buffer = await file.arrayBuffer();
       const { data, preview: prev, unmappedColumns, sheetName } = parseExcelFile(buffer);
       clearInterval(interval);
-      setProgress(100);
+      setProgress(50);
       setPreview(prev);
       setRowCount(data.length);
       setSheetInfo({ sheetName, unmapped: unmappedColumns });
-      setData(data, {
+
+      const meta: UploadMeta = {
         fileName: file.name,
         rowCount: data.length,
+        sheetName,
         uploadedAt: new Date(),
-      });
+      };
+
+      // Salva no banco
+      setSaving(true);
+      setProgress(60);
+
+      const progressInterval = setInterval(() => {
+        setProgress((p) => Math.min(p + Math.random() * 5, 90));
+      }, 300);
+
+      const { error: saveError } = await saveUploadToSupabase(data, meta);
+      clearInterval(progressInterval);
+
+      if (saveError) {
+        setError(`Erro ao salvar no banco: ${saveError}`);
+        toast.error(`Erro ao salvar: ${saveError}`);
+      } else {
+        setProgress(100);
+        setData(data, meta);
+        toast.success(`${data.length.toLocaleString('pt-BR')} linhas carregadas e salvas com sucesso!`);
+      }
     } catch (e: any) {
       clearInterval(interval);
       setProgress(0);
       setError(e.message || 'Erro ao processar arquivo');
     } finally {
       setProcessing(false);
+      setSaving(false);
     }
-  }, [setData, clearData]);
+  }, [setData]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -75,13 +101,15 @@ export default function UploadPage() {
     if (file) processFile(file);
   }, [processFile]);
 
-  const handleClearData = useCallback(() => {
+  const handleClearData = useCallback(async () => {
+    await clearSupabaseUploads();
     clearData();
     setPreview(null);
     setRowCount(0);
     setSheetInfo(null);
     setFileName('');
     setProgress(0);
+    toast.success('Dados removidos com sucesso.');
   }, [clearData]);
 
   return (
@@ -147,11 +175,13 @@ export default function UploadPage() {
         </p>
       </div>
 
-      {processing && (
+      {(processing || saving) && (
         <div className="space-y-3 p-4 rounded-lg bg-surface shadow-layered">
           <div className="flex items-center gap-3">
-            <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            <span className="text-sm text-muted-foreground">Processando {fileName}...</span>
+            <Loader2 className="h-4 w-4 text-primary animate-spin" />
+            <span className="text-sm text-muted-foreground">
+              {saving ? `Salvando ${fileName} no banco...` : `Processando ${fileName}...`}
+            </span>
           </div>
           <Progress value={progress} className="h-2" />
         </div>
@@ -164,7 +194,7 @@ export default function UploadPage() {
         </div>
       )}
 
-      {preview && !processing && (
+      {preview && !processing && !saving && (
         <div className="space-y-4 animate-fade-in">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -189,7 +219,6 @@ export default function UploadPage() {
             </button>
           </div>
 
-          {/* Preview Table */}
           <div className="rounded-xl bg-surface shadow-layered overflow-hidden">
             <div className="px-4 py-3 border-b border-border">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -230,7 +259,6 @@ export default function UploadPage() {
         </div>
       )}
 
-      {/* Current Data Info */}
       {uploadMeta && !preview && (
         <div className="flex items-center gap-3 p-4 rounded-lg bg-surface shadow-layered">
           <FileSpreadsheet className="h-5 w-5 text-primary shrink-0" />

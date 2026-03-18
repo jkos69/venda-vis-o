@@ -44,5 +44,6 @@ export interface FilterState {
 export interface UploadMeta {
   fileName: string;
   rowCount: number;
+  sheetName: string;
   uploadedAt: Date;
 }
