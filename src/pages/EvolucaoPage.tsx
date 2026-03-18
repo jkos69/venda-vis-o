@@ -1,4 +1,4 @@
-import { useStore } from '@/store/useStore';
+import { useStore, useFilteredData } from '@/store/useStore';
 import { aggregate, filterByBase, groupBy } from '@/lib/aggregations';
 import { formatCurrency } from '@/lib/format';
 import { GlobalFilters } from '@/components/GlobalFilters';
@@ -10,7 +10,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, Ca
 type Indicator = 'receitaBrutaOperacional' | 'quantidade' | 'receitaLiquida';
 
 export default function EvolucaoPage() {
-  const data = useStore((s) => s.filteredData());
+  const data = useFilteredData();
   const uploadMeta = useStore((s) => s.uploadMeta);
   const navigate = useNavigate();
   const [indicator, setIndicator] = useState<Indicator>('receitaBrutaOperacional');

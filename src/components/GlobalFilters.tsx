@@ -11,16 +11,7 @@ export function GlobalFilters() {
   const paises = useUniqueValues('pais');
   const ufs = useUniqueValues('uf');
   const mercados = useUniqueValues('mercado');
-  const data = useStore((s) => s.data);
-
   if (data.length === 0) return null;
-
-  const bus = uniqueValues('bu');
-  const segmentos = uniqueValues('segmento');
-  const familias = uniqueValues('familia');
-  const paises = uniqueValues('pais');
-  const ufs = uniqueValues('uf');
-  const mercados = uniqueValues('mercado');
 
   return (
     <div className="flex flex-wrap items-center gap-3">

@@ -1,4 +1,4 @@
-import { useStore } from '@/store/useStore';
+import { useStore, useFilteredData } from '@/store/useStore';
 import { aggregate, filterByBase, deltaPercent, groupBy } from '@/lib/aggregations';
 import { formatCurrency, formatPct, getDeltaColorClass, formatQty } from '@/lib/format';
 import { GlobalFilters } from '@/components/GlobalFilters';
@@ -6,7 +6,7 @@ import { Upload } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function GeografiaPage() {
-  const data = useStore((s) => s.filteredData());
+  const data = useFilteredData();
   const uploadMeta = useStore((s) => s.uploadMeta);
   const filters = useStore((s) => s.filters);
   const navigate = useNavigate();

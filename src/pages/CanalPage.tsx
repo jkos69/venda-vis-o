@@ -1,4 +1,4 @@
-import { useStore } from '@/store/useStore';
+import { useStore, useFilteredData } from '@/store/useStore';
 import { aggregate, filterByBase, deltaPercent, groupBy } from '@/lib/aggregations';
 import { formatCurrency, formatPct, getDeltaColorClass } from '@/lib/format';
 import { GlobalFilters } from '@/components/GlobalFilters';
@@ -9,7 +9,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis
 const COLORS = ['hsl(210,100%,56%)', 'hsl(165,100%,39%)', 'hsl(45,100%,60%)', 'hsl(280,80%,60%)', 'hsl(0,100%,63%)', 'hsl(190,80%,50%)', 'hsl(30,90%,55%)'];
 
 export default function CanalPage() {
-  const data = useStore((s) => s.filteredData());
+  const data = useFilteredData();
   const uploadMeta = useStore((s) => s.uploadMeta);
   const filters = useStore((s) => s.filters);
   const navigate = useNavigate();
