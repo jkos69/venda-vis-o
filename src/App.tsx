@@ -14,6 +14,7 @@ import ProdutoPage from "./pages/ProdutoPage";
 import GeografiaPage from "./pages/GeografiaPage";
 import EvolucaoPage from "./pages/EvolucaoPage";
 import UploadPage from "./pages/UploadPage";
+import TubetesEvolution from "./pages/TubetesEvolution";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,7 @@ function AppInner() {
         <Route path="/geografia" element={<GeografiaPage />} />
         <Route path="/evolucao" element={<EvolucaoPage />} />
         <Route path="/upload" element={<UploadPage />} />
+        <Route path="/tubetes" element={<TubetesEvolution />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AppLayout>
