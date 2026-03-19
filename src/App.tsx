@@ -14,6 +14,7 @@ import ProdutoPage from "./pages/ProdutoPage";
 import GeografiaPage from "./pages/GeografiaPage";
 import EvolucaoPage from "./pages/EvolucaoPage";
 import UploadPage from "./pages/UploadPage";
+import TubetesEvolution from "./pages/TubetesEvolution";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
