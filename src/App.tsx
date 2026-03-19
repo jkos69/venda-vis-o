@@ -33,6 +33,7 @@ function AppInner() {
         <Route path="/geografia" element={<GeografiaPage />} />
         <Route path="/evolucao" element={<EvolucaoPage />} />
         <Route path="/upload" element={<UploadPage />} />
+        <Route path="/tubetes" element={<TubetesEvolution />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AppLayout>

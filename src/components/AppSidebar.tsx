@@ -23,6 +23,7 @@ const navItems = [
   { title: 'Por Produto', url: '/produto', icon: Package },
   { title: 'Por Geografia', url: '/geografia', icon: MapPin },
   { title: 'Evolução Mensal', url: '/evolucao', icon: TrendingUp },
+  { title: 'Tubetes', url: '/tubetes', icon: Package },
 ];
 
 const configItems = [
