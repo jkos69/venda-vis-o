@@ -1,5 +1,5 @@
 import { useStore, useFilteredData } from '@/store/useStore';
-import { aggregate, filterByBase, deltaPercent, groupByNormalized, groupBy, getMesesComDadosReais, filtrarPelosMesesDoReal } from '@/lib/aggregations';
+import { aggregate, filterByBase, deltaPercent, groupByNormalized, margemBrutaPercent, getMesesComDadosReais, filtrarPelosMesesDoReal } from '@/lib/aggregations';
 import { formatCurrency, formatPct, getDeltaColorClass, formatQty } from '@/lib/format';
 import { GlobalFilters } from '@/components/GlobalFilters';
 import { ChartTooltip } from '@/components/ChartTooltip';
@@ -7,6 +7,7 @@ import { Upload } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 export default function BUPage() {
   const data = useFilteredData();
@@ -34,7 +35,6 @@ export default function BUPage() {
   const comp = filtrarPelosMesesDoReal(compRaw, mesesDoReal);
   const compLabel = filters.baseComparacao === 'orcamento' ? 'Orç 26' : 'Real 25';
 
-  // Use normalized grouping to merge case variants
   const buGroupsReal = groupByNormalized(real26, (r) => r.bu);
   const buGroupsComp = groupByNormalized(comp, (r) => r.bu);
 
@@ -46,6 +46,7 @@ export default function BUPage() {
     const rAgg = aggregate(realEntry?.items || []);
     const cAgg = aggregate(compEntry?.items || []);
     const label = realEntry?.label || compEntry?.label || normKey;
+    const mb = margemBrutaPercent(rAgg);
     return {
       normKey,
       bu: label,
@@ -55,6 +56,7 @@ export default function BUPage() {
       realQty: rAgg.quantidade,
       compQty: cAgg.quantidade,
       deltaQty: deltaPercent(rAgg.quantidade, cAgg.quantidade),
+      mb,
     };
   }).sort((a, b) => b.realROB - a.realROB);
 
@@ -96,6 +98,7 @@ export default function BUPage() {
                 <th className="text-right px-4 py-3 font-medium">Real 26</th>
                 <th className="text-right px-4 py-3 font-medium">{compLabel}</th>
                 <th className="text-right px-4 py-3 font-medium">Δ%</th>
+                <th className="text-right px-4 py-3 font-medium">MB%</th>
                 <th className="text-right px-4 py-3 font-medium">Qtd Real</th>
                 <th className="text-right px-4 py-3 font-medium">Δ% Qtd</th>
               </tr>
@@ -112,6 +115,7 @@ export default function BUPage() {
                     <td className="text-right px-4 py-2.5 tabular-nums font-medium text-foreground">{formatCurrency(row.realROB)}</td>
                     <td className="text-right px-4 py-2.5 tabular-nums text-muted-foreground">{formatCurrency(row.compROB)}</td>
                     <td className={`text-right px-4 py-2.5 tabular-nums font-medium ${getDeltaColorClass(row.delta)}`}>{formatPct(row.delta)}</td>
+                    <td className={`text-right px-4 py-2.5 tabular-nums font-medium ${row.mb != null && row.mb > 0 ? 'text-success' : row.mb != null && row.mb < 0 ? 'text-destructive' : 'text-muted-foreground'}`}>{formatPct(row.mb)}</td>
                     <td className="text-right px-4 py-2.5 tabular-nums text-foreground">{formatQty(row.realQty)}</td>
                     <td className={`text-right px-4 py-2.5 tabular-nums font-medium ${getDeltaColorClass(row.deltaQty)}`}>{formatPct(row.deltaQty)}</td>
                   </tr>
@@ -129,46 +133,65 @@ export default function BUPage() {
 }
 
 function DrillDown({ normKey, data, filters, compLabel, mesesDoReal }: { normKey: string; data: any[]; filters: any; compLabel: string; mesesDoReal: Set<number> }) {
-  // Filter by normalized BU key
   const buData = data.filter((r) => (r.bu || '').trim().toUpperCase() === normKey);
   const real26 = filterByBase(buData, 'Real 26');
   const compRaw = filterByBase(buData, filters.baseComparacao === 'orcamento' ? 'Orç 26' : 'Real 25');
   const comp = filtrarPelosMesesDoReal(compRaw, mesesDoReal);
 
-  const gpReal = groupByNormalized(real26, (r) => r.grupoProduto);
-  const gpComp = groupByNormalized(comp, (r) => r.grupoProduto);
+  return (
+    <tr key={`${normKey}-drill`}>
+      <td colSpan={7} className="px-8 py-3 bg-accent/10">
+        <Tabs defaultValue="grupoProduto">
+          <TabsList className="mb-3">
+            <TabsTrigger value="grupoProduto">Grupo Produto</TabsTrigger>
+            <TabsTrigger value="familia">Família</TabsTrigger>
+          </TabsList>
+          <TabsContent value="grupoProduto">
+            <DrillDownTable real={real26} comp={comp} groupFn={(r) => r.grupoProduto} columnLabel="Grupo Produto" compLabel={compLabel} />
+          </TabsContent>
+          <TabsContent value="familia">
+            <DrillDownTable real={real26} comp={comp} groupFn={(r) => r.familia} columnLabel="Família" compLabel={compLabel} />
+          </TabsContent>
+        </Tabs>
+      </td>
+    </tr>
+  );
+}
+
+function DrillDownTable({ real, comp, groupFn, columnLabel, compLabel }: { real: any[]; comp: any[]; groupFn: (r: any) => string; columnLabel: string; compLabel: string }) {
+  const gpReal = groupByNormalized(real, groupFn);
+  const gpComp = groupByNormalized(comp, groupFn);
   const groups = [...new Set([...Object.keys(gpReal), ...Object.keys(gpComp)])].filter(Boolean).sort();
 
   return (
-    <tr key={`${normKey}-drill`}>
-      <td colSpan={6} className="px-8 py-3 bg-accent/10">
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="text-muted-foreground/70">
-              <th className="text-left py-1 font-medium">Grupo Produto</th>
-              <th className="text-right py-1 font-medium">Real 26</th>
-              <th className="text-right py-1 font-medium">{compLabel}</th>
-              <th className="text-right py-1 font-medium">Δ%</th>
+    <table className="w-full text-xs">
+      <thead>
+        <tr className="text-muted-foreground/70">
+          <th className="text-left py-1 font-medium">{columnLabel}</th>
+          <th className="text-right py-1 font-medium">Real 26</th>
+          <th className="text-right py-1 font-medium">{compLabel}</th>
+          <th className="text-right py-1 font-medium">Δ%</th>
+          <th className="text-right py-1 font-medium">MB%</th>
+        </tr>
+      </thead>
+      <tbody>
+        {groups.map((gpKey) => {
+          const rAgg = aggregate(gpReal[gpKey]?.items || []);
+          const cAgg = aggregate(gpComp[gpKey]?.items || []);
+          const dp = deltaPercent(rAgg.receitaBrutaOperacional, cAgg.receitaBrutaOperacional);
+          const mb = margemBrutaPercent(rAgg);
+          const label = gpReal[gpKey]?.label || gpComp[gpKey]?.label || gpKey;
+          return (
+            <tr key={gpKey} className="border-b border-border/20">
+              <td className="py-1.5 text-muted-foreground">{label}</td>
+              <td className="text-right py-1.5 tabular-nums text-foreground">{formatCurrency(rAgg.receitaBrutaOperacional)}</td>
+              <td className="text-right py-1.5 tabular-nums text-muted-foreground">{formatCurrency(cAgg.receitaBrutaOperacional)}</td>
+              <td className={`text-right py-1.5 tabular-nums font-medium ${getDeltaColorClass(dp)}`}>{formatPct(dp)}</td>
+              <td className={`text-right py-1.5 tabular-nums font-medium ${mb != null && mb > 0 ? 'text-success' : mb != null && mb < 0 ? 'text-destructive' : 'text-muted-foreground'}`}>{formatPct(mb)}</td>
             </tr>
-          </thead>
-          <tbody>
-            {groups.map((gpKey) => {
-              const rAgg = aggregate(gpReal[gpKey]?.items || []);
-              const cAgg = aggregate(gpComp[gpKey]?.items || []);
-              const dp = deltaPercent(rAgg.receitaBrutaOperacional, cAgg.receitaBrutaOperacional);
-              const label = gpReal[gpKey]?.label || gpComp[gpKey]?.label || gpKey;
-              return (
-                <tr key={gpKey} className="border-b border-border/20">
-                  <td className="py-1.5 text-muted-foreground">{label}</td>
-                  <td className="text-right py-1.5 tabular-nums text-foreground">{formatCurrency(rAgg.receitaBrutaOperacional)}</td>
-                  <td className="text-right py-1.5 tabular-nums text-muted-foreground">{formatCurrency(cAgg.receitaBrutaOperacional)}</td>
-                  <td className={`text-right py-1.5 tabular-nums font-medium ${getDeltaColorClass(dp)}`}>{formatPct(dp)}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </td>
-    </tr>
+          );
+        })}
+      </tbody>
+    </table>
   );
 }

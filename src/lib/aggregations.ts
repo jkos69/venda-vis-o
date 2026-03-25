@@ -116,7 +116,20 @@ export function getMesesComDadosReais(data: RawDataRow[]): Set<number> {
 /**
  * Filtra dados para incluir APENAS os meses que existem no Real 26.
  */
+export function margemBrutaPercent(m: AggregatedMetrics): number | null {
+  const rl = receitaLiquida(m);
+  const rbo = m.receitaBrutaOperacional;
+  if (rbo === 0) return null;
+  return rl / rbo;
+}
+
 export function filtrarPelosMesesDoReal(
+  data: RawDataRow[],
+  mesesDoReal: Set<number>
+): RawDataRow[] {
+  if (mesesDoReal.size === 0) return data;
+  return data.filter(r => mesesDoReal.has(r.mes));
+}
   data: RawDataRow[],
   mesesDoReal: Set<number>
 ): RawDataRow[] {
