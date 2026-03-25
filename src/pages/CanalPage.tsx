@@ -1,11 +1,13 @@
 import { useStore, useFilteredData } from '@/store/useStore';
-import { aggregate, filterByBase, deltaPercent, groupBy, getMesesComDadosReais, filtrarPelosMesesDoReal } from '@/lib/aggregations';
+import { aggregate, filterByBase, deltaPercent, groupBy, groupByNormalized, margemBrutaPercent, getMesesComDadosReais, filtrarPelosMesesDoReal } from '@/lib/aggregations';
 import { formatCurrency, formatPct, getDeltaColorClass } from '@/lib/format';
 import { GlobalFilters } from '@/components/GlobalFilters';
 import { ChartTooltip } from '@/components/ChartTooltip';
 import { Upload } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, Legend } from 'recharts';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 const COLORS = ['hsl(210,100%,56%)', 'hsl(165,100%,39%)', 'hsl(45,100%,60%)', 'hsl(280,80%,60%)', 'hsl(0,100%,63%)', 'hsl(190,80%,50%)', 'hsl(30,90%,55%)'];
 
@@ -14,6 +16,7 @@ export default function CanalPage() {
   const uploadMeta = useStore((s) => s.uploadMeta);
   const filters = useStore((s) => s.filters);
   const navigate = useNavigate();
+  const [expandedSeg, setExpandedSeg] = useState<string | null>(null);
 
   if (!uploadMeta) {
     return (
@@ -32,21 +35,25 @@ export default function CanalPage() {
   const comp = filtrarPelosMesesDoReal(compRaw, mesesDoReal);
   const compLabel = filters.baseComparacao === 'orcamento' ? 'Orç 26' : 'Real 25';
 
-  const segReal = groupBy(real26, (r) => r.segmento);
-  const segComp = groupBy(comp, (r) => r.segmento);
+  const segReal = groupByNormalized(real26, (r) => r.segmento);
+  const segComp = groupByNormalized(comp, (r) => r.segmento);
   const segs = [...new Set([...Object.keys(segReal), ...Object.keys(segComp)])].filter(Boolean).sort();
 
-  const totalReal = aggregate(real26).receitaBrutaOperacional;
+  const totalReal = Object.values(segReal).reduce((s, g) => s + aggregate(g.items).receitaBrutaOperacional, 0);
 
-  const tableData = segs.map((seg) => {
-    const rAgg = aggregate(segReal[seg] || []);
-    const cAgg = aggregate(segComp[seg] || []);
+  const tableData = segs.map((normKey) => {
+    const rAgg = aggregate(segReal[normKey]?.items || []);
+    const cAgg = aggregate(segComp[normKey]?.items || []);
+    const label = segReal[normKey]?.label || segComp[normKey]?.label || normKey;
+    const mb = margemBrutaPercent(rAgg);
     return {
-      seg,
+      normKey,
+      seg: label,
       real: rAgg.receitaBrutaOperacional,
       comp: cAgg.receitaBrutaOperacional,
       delta: deltaPercent(rAgg.receitaBrutaOperacional, cAgg.receitaBrutaOperacional),
       mix: totalReal ? rAgg.receitaBrutaOperacional / totalReal : 0,
+      mb,
     };
   }).sort((a, b) => b.real - a.real);
 
@@ -100,23 +107,98 @@ export default function CanalPage() {
                 <th className="text-right px-4 py-3 font-medium">Real 26</th>
                 <th className="text-right px-4 py-3 font-medium">{compLabel}</th>
                 <th className="text-right px-4 py-3 font-medium">Δ%</th>
+                <th className="text-right px-4 py-3 font-medium">MB%</th>
                 <th className="text-right px-4 py-3 font-medium">Mix%</th>
               </tr>
             </thead>
             <tbody>
               {tableData.map((row) => (
-                <tr key={row.seg} className="border-b border-border/30 hover:bg-accent/20 transition-colors duration-150">
-                  <td className="px-5 py-2.5 font-medium text-foreground">{row.seg}</td>
-                  <td className="text-right px-4 py-2.5 tabular-nums font-medium text-foreground">{formatCurrency(row.real)}</td>
-                  <td className="text-right px-4 py-2.5 tabular-nums text-muted-foreground">{formatCurrency(row.comp)}</td>
-                  <td className={`text-right px-4 py-2.5 tabular-nums font-medium ${getDeltaColorClass(row.delta)}`}>{formatPct(row.delta)}</td>
-                  <td className="text-right px-4 py-2.5 tabular-nums text-muted-foreground">{formatPct(row.mix)}</td>
-                </tr>
+                <>
+                  <tr
+                    key={row.normKey}
+                    className="border-b border-border/30 hover:bg-accent/20 transition-colors duration-150 cursor-pointer"
+                    onClick={() => setExpandedSeg(expandedSeg === row.normKey ? null : row.normKey)}
+                  >
+                    <td className="px-5 py-2.5 font-medium text-foreground">{row.seg}</td>
+                    <td className="text-right px-4 py-2.5 tabular-nums font-medium text-foreground">{formatCurrency(row.real)}</td>
+                    <td className="text-right px-4 py-2.5 tabular-nums text-muted-foreground">{formatCurrency(row.comp)}</td>
+                    <td className={`text-right px-4 py-2.5 tabular-nums font-medium ${getDeltaColorClass(row.delta)}`}>{formatPct(row.delta)}</td>
+                    <td className={`text-right px-4 py-2.5 tabular-nums font-medium ${row.mb != null && row.mb > 0 ? 'text-success' : row.mb != null && row.mb < 0 ? 'text-destructive' : 'text-muted-foreground'}`}>{formatPct(row.mb)}</td>
+                    <td className="text-right px-4 py-2.5 tabular-nums text-muted-foreground">{formatPct(row.mix)}</td>
+                  </tr>
+                  {expandedSeg === row.normKey && (
+                    <SegDrillDown normKey={row.normKey} data={data} filters={filters} compLabel={compLabel} mesesDoReal={mesesDoReal} />
+                  )}
+                </>
               ))}
             </tbody>
           </table>
         </div>
       </div>
     </div>
+  );
+}
+
+function SegDrillDown({ normKey, data, filters, compLabel, mesesDoReal }: { normKey: string; data: any[]; filters: any; compLabel: string; mesesDoReal: Set<number> }) {
+  const segData = data.filter((r) => (r.segmento || '').trim().toUpperCase() === normKey);
+  const real26 = filterByBase(segData, 'Real 26');
+  const compRaw = filterByBase(segData, filters.baseComparacao === 'orcamento' ? 'Orç 26' : 'Real 25');
+  const comp = filtrarPelosMesesDoReal(compRaw, mesesDoReal);
+
+  return (
+    <tr key={`${normKey}-drill`}>
+      <td colSpan={6} className="px-8 py-3 bg-accent/10">
+        <Tabs defaultValue="bu">
+          <TabsList className="mb-3">
+            <TabsTrigger value="bu">Por BU</TabsTrigger>
+            <TabsTrigger value="familia">Por Família</TabsTrigger>
+          </TabsList>
+          <TabsContent value="bu">
+            <SubTable real={real26} comp={comp} groupFn={(r) => r.bu} columnLabel="BU" compLabel={compLabel} />
+          </TabsContent>
+          <TabsContent value="familia">
+            <SubTable real={real26} comp={comp} groupFn={(r) => r.familia} columnLabel="Família" compLabel={compLabel} />
+          </TabsContent>
+        </Tabs>
+      </td>
+    </tr>
+  );
+}
+
+function SubTable({ real, comp, groupFn, columnLabel, compLabel }: { real: any[]; comp: any[]; groupFn: (r: any) => string; columnLabel: string; compLabel: string }) {
+  const gpReal = groupByNormalized(real, groupFn);
+  const gpComp = groupByNormalized(comp, groupFn);
+  const groups = [...new Set([...Object.keys(gpReal), ...Object.keys(gpComp)])].filter(Boolean).sort();
+
+  return (
+    <table className="w-full text-xs">
+      <thead>
+        <tr className="text-muted-foreground/70">
+          <th className="text-left py-1 font-medium">{columnLabel}</th>
+          <th className="text-right py-1 font-medium">Real 26</th>
+          <th className="text-right py-1 font-medium">{compLabel}</th>
+          <th className="text-right py-1 font-medium">Δ%</th>
+          <th className="text-right py-1 font-medium">MB%</th>
+        </tr>
+      </thead>
+      <tbody>
+        {groups.map((gpKey) => {
+          const rAgg = aggregate(gpReal[gpKey]?.items || []);
+          const cAgg = aggregate(gpComp[gpKey]?.items || []);
+          const dp = deltaPercent(rAgg.receitaBrutaOperacional, cAgg.receitaBrutaOperacional);
+          const mb = margemBrutaPercent(rAgg);
+          const label = gpReal[gpKey]?.label || gpComp[gpKey]?.label || gpKey;
+          return (
+            <tr key={gpKey} className="border-b border-border/20">
+              <td className="py-1.5 text-muted-foreground">{label}</td>
+              <td className="text-right py-1.5 tabular-nums text-foreground">{formatCurrency(rAgg.receitaBrutaOperacional)}</td>
+              <td className="text-right py-1.5 tabular-nums text-muted-foreground">{formatCurrency(cAgg.receitaBrutaOperacional)}</td>
+              <td className={`text-right py-1.5 tabular-nums font-medium ${getDeltaColorClass(dp)}`}>{formatPct(dp)}</td>
+              <td className={`text-right py-1.5 tabular-nums font-medium ${mb != null && mb > 0 ? 'text-success' : mb != null && mb < 0 ? 'text-destructive' : 'text-muted-foreground'}`}>{formatPct(mb)}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
   );
 }
